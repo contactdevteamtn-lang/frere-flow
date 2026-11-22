@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { avecSecurite, estRouteApi, relayerApi } from "./lib/relais-api";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -44,12 +45,32 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Relais /api vers le serveur API (hébergement à deux adresses, ex. Render) — voir src/lib/relais-api.ts
+const API_CIBLE = (() => {
+  const v = process.env["API_PROXY_TARGET"];
+  if (!v) return "";
+  try {
+    const u = new URL(v);
+    if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("protocole");
+    return u.origin;
+  } catch {
+    console.error("API_PROXY_TARGET invalide (exemple : https://frere-flow-api.onrender.com)");
+    return "";
+  }
+})();
+const PROXY_SECRET = process.env["PROXY_SECRET"] ?? "";
+const PRODUCTION = process.env["NODE_ENV"] === "production";
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    if (API_CIBLE && estRouteApi(new URL(request.url).pathname)) {
+      return relayerApi(request, API_CIBLE, PROXY_SECRET);
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const page = await normalizeCatastrophicSsrResponse(response);
+      return PRODUCTION ? avecSecurite(page) : page;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
