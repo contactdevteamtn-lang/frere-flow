@@ -344,8 +344,9 @@ function MarketSaleDialog({ trip, onClose }: { trip: MarketTrip; onClose: () => 
         {f.items.map((it, i) => {
           const av = it.productId ? (bal.get(it.productId)?.remaining ?? 0) : null;
           return (
+            // libellés fixes au-dessus de chaque case : on sait toujours quelle case est quoi
             <div key={i} className="grid grid-cols-12 items-start gap-2 rounded-lg bg-muted/50 p-2">
-              <div className="col-span-12 sm:col-span-4">
+              <Field label="المنتج" className="col-span-12 sm:col-span-4">
                 <NativeSelect
                   value={it.productId}
                   onChange={(e) => {
@@ -372,33 +373,37 @@ function MarketSaleDialog({ trip, onClose }: { trip: MarketTrip; onClose: () => 
                     {num(av, 1)} kg
                   </p>
                 )}
-              </div>
-              <div className="col-span-4 sm:col-span-2">
+              </Field>
+              <Field label="الكمية (كغ)" className="col-span-4 sm:col-span-2">
                 <Input
                   type="number"
                   min={0}
                   step="0.001"
                   inputMode="decimal"
-                  placeholder={translate("كغ، مثال: 20")}
+                  aria-label={translate("الكمية (كغ)")}
+                  placeholder={translate("مثال: 20")}
                   value={it.quantity || ""}
                   onChange={(e) => setItem(i, { quantity: Number(e.target.value) })}
                 />
-              </div>
-              <div className="col-span-4 sm:col-span-2">
+              </Field>
+              <Field label="سعر الوحدة (د.ت)" className="col-span-4 sm:col-span-2">
                 <Input
                   type="number"
                   step="0.001"
                   min={0}
                   inputMode="decimal"
-                  placeholder={translate("سعر الوحدة، مثال: 1.500")}
+                  aria-label={translate("سعر الوحدة (د.ت)")}
+                  placeholder={translate("مثال: 1.500")}
                   value={it.unitPrice || ""}
                   onChange={(e) => setItem(i, { unitPrice: Number(e.target.value) })}
                 />
-              </div>
-              <div className="col-span-3 py-2 text-end text-sm font-semibold sm:col-span-3">
-                {dt(it.quantity * it.unitPrice)}
-              </div>
-              <div className="col-span-1">
+              </Field>
+              <Field label="المجموع" className="col-span-3 sm:col-span-3">
+                <div className="flex h-9 items-center justify-end text-sm font-semibold">
+                  {dt(it.quantity * it.unitPrice)}
+                </div>
+              </Field>
+              <div className="col-span-1 pt-5">
                 <Button
                   type="button"
                   size="icon"

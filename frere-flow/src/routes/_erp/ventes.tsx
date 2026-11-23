@@ -296,7 +296,7 @@ function Ventes() {
   );
 }
 
-function NewSale({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: string }) {
+export function NewSale({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: string }) {
   useLanguage();
   const { state, run, me, can } = useApp();
   const [f, setF] = useState<SaleInput>({
@@ -371,8 +371,10 @@ function NewSale({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: s
         {f.items.map((it, i) => {
           const av = it.productId ? stockOf(state, it.productId, f.frigoId) : null;
           return (
-            <div key={i} className="grid grid-cols-12 items-end gap-2 rounded-lg bg-muted/50 p-2">
-              <div className="col-span-12 sm:col-span-4">
+            // libellés fixes au-dessus de chaque case + alignement en haut : les cases ne bougent
+            // plus quand le prix se remplit ou que la ligne « disponible » apparaît
+            <div key={i} className="grid grid-cols-12 items-start gap-2 rounded-lg bg-muted/50 p-2">
+              <Field label="المنتج" className="col-span-12 sm:col-span-4">
                 <NativeSelect
                   value={it.productId}
                   onChange={(e) => {
@@ -401,33 +403,37 @@ function NewSale({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: s
                     {num(av)} kg
                   </p>
                 )}
-              </div>
-              <div className="col-span-4 sm:col-span-2">
+              </Field>
+              <Field label="الكمية (كغ)" className="col-span-4 sm:col-span-2">
                 <Input
                   type="number"
                   min={0}
                   step="0.001"
                   inputMode="decimal"
-                  placeholder={translate("الكمية، مثال: 25")}
+                  aria-label={translate("الكمية (كغ)")}
+                  placeholder={translate("مثال: 25")}
                   value={it.quantity || ""}
                   onChange={(e) => setItem(i, { quantity: Number(e.target.value) })}
                 />
-              </div>
-              <div className="col-span-4 sm:col-span-2">
+              </Field>
+              <Field label="سعر الوحدة (د.ت)" className="col-span-4 sm:col-span-2">
                 <Input
                   type="number"
                   step="0.001"
                   min={0}
                   inputMode="decimal"
-                  placeholder={translate("سعر الوحدة، مثال: 1.200")}
+                  aria-label={translate("سعر الوحدة (د.ت)")}
+                  placeholder={translate("مثال: 1.200")}
                   value={it.unitPrice || ""}
                   onChange={(e) => setItem(i, { unitPrice: Number(e.target.value) })}
                 />
-              </div>
-              <div className="col-span-3 py-2 text-end text-sm font-semibold sm:col-span-3">
-                {dt(it.quantity * it.unitPrice)}
-              </div>
-              <div className="col-span-1">
+              </Field>
+              <Field label="المجموع" className="col-span-3 sm:col-span-3">
+                <div className="flex h-9 items-center justify-end text-sm font-semibold">
+                  {dt(it.quantity * it.unitPrice)}
+                </div>
+              </Field>
+              <div className="col-span-1 pt-5">
                 <Button
                   type="button"
                   size="icon"
