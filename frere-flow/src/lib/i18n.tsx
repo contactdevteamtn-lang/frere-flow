@@ -7,9 +7,13 @@ let activeLanguage: Language = "ar";
 export const locale = () => (activeLanguage === "ar" ? "ar-TN" : "fr-TN");
 const entries = Object.entries(translations).sort(([a], [b]) => b.length - a.length);
 const reverse = Object.fromEntries(entries.map(([ar, fr]) => [fr, ar]));
-const expression = new RegExp(
+// Remplacement par MOTS ENTIERS uniquement (jamais au milieu d'un mot arabe) : sinon « ما » dans
+// « الحماية » devenait « Mai » → « الحMaiة ». Une phrase sans traduction complète reste lisible.
+const LETTRE_AR = "\\u0600-\\u06FF";
+const motsEntiers = (alternatives: string) =>
+  new RegExp(`(?<![${LETTRE_AR}])(?:${alternatives})(?![${LETTRE_AR}])`, "g");
+const expression = motsEntiers(
   entries.map(([ar]) => ar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"),
-  "g",
 );
 
 /* Noms saisis par les utilisateurs (clients, personnes, produits, marchés…) : chacun a sa version française
@@ -44,11 +48,13 @@ export function enregistrerNoms(items: { name?: string; nameAlt?: string }[]) {
     noms.ar.set(fr, ar);
   }
   const cles = [...noms.fr.keys()].filter(hasArabic).sort((a, b) => b.length - a.length);
-  noms.re = cles.length ? new RegExp(cles.map(echapper).join("|"), "g") : null;
+  noms.re = cles.length ? motsEntiers(cles.map(echapper).join("|")) : null;
 }
 
 export function translate(text: string, language: Language = activeLanguage): string {
-  if (language === "ar") return noms.ar.get(text) ?? reverse[text] ?? text;
+  if (language === "ar")
+    // montants enregistrés dans l'historique (« 247 TND ») : unité en arabe
+    return (noms.ar.get(text) ?? reverse[text] ?? text).replace(/(\d)\s*TND\b/g, "$1 د.ت");
   const nom = noms.fr.get(text);
   if (nom !== undefined) return nom;
   if (translations[text] !== undefined) return translations[text]!;

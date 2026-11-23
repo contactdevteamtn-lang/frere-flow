@@ -57,7 +57,7 @@ function Equipes() {
                     <p className="text-xs text-muted-foreground">
                       {translate(t.description ?? "")}
                       {<Text>{" · المسؤول: "}</Text>}
-                      {t.responsable}
+                      {translate(t.responsable ?? "")}
                     </p>
                   </div>
                 </div>

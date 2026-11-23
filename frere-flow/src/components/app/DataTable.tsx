@@ -21,6 +21,9 @@ export interface Column<T> {
   className?: string;
 }
 
+/** Cellule texte (nom de client, d'équipe, de frigo, statut…) : affichée dans la langue choisie */
+const celluleTraduite = (v: ReactNode) => (typeof v === "string" ? translate(v) : v);
+
 export function DataTable<T extends { id: string }>({
   rows,
   columns,
@@ -128,7 +131,7 @@ export function DataTable<T extends { id: string }>({
                 >
                   {columns.map((c, i) => (
                     <TableCell key={i} className={cn("whitespace-nowrap", c.className)}>
-                      {c.cell(r)}
+                      {celluleTraduite(c.cell(r))}
                     </TableCell>
                   ))}
                 </TableRow>

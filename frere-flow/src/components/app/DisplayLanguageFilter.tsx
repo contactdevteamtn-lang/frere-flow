@@ -28,9 +28,9 @@ export function DisplayLanguageFilter({
       value={value}
       onChange={(e) => onChange(e.target.value as DisplayLang)}
     >
-      <option value="ar">العربية</option>
-      <option value="fr">Français</option>
-      <option value="both">العربية / Français</option>
+      <option value="ar">{translate("العربية")}</option>
+      <option value="fr">{translate("الفرنسية")}</option>
+      <option value="both">{translate("العربية / الفرنسية")}</option>
     </NativeSelect>
   );
 }

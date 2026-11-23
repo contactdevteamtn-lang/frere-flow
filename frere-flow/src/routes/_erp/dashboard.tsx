@@ -57,22 +57,26 @@ const C = [
 ];
 
 function Dashboard() {
+  const { language } = useLanguage();
   const { state, teamFilter } = useApp();
   const L = useLookups();
   const inScope = useTeamScope();
   const today = new Date().toISOString();
+  // recalculé aussi au changement de langue (mois, noms d'équipes / frigos / caisses des graphiques)
   const d = useMemo(
     () => buildDashboardData(state, teamFilter, inScope, today),
-    [state, inScope, teamFilter, today],
+    [state, inScope, teamFilter, today, language], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const nom = (n?: string) => translate(n ?? "");
 
-  const scopeLabel = teamFilter === "all" ? translate("كل فرق فيغو") : L.team.get(teamFilter)?.name;
+  const scopeLabel =
+    teamFilter === "all" ? translate("كل فرق فيغو") : nom(L.team.get(teamFilter)?.name);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={translate("لوحة المتابعة")}
-        subtitle={translate(`نظرة عامة — ${scopeLabel}`)}
+        subtitle={`${translate("نظرة عامة")} — ${scopeLabel}`}
       />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi
@@ -198,7 +202,8 @@ function Dashboard() {
                 {state.products.slice(0, 5).map((p, i) => (
                   <Bar
                     key={p.id}
-                    dataKey={translate(p.name ?? "")}
+                    dataKey={p.id}
+                    name={nom(p.name)}
                     fill={C[i]}
                     radius={[4, 4, 0, 0]}
                   />
@@ -263,27 +268,25 @@ function Dashboard() {
               <Alert
                 key={c.id}
                 tone="destructive"
-                text={translate(
-                  `دين متأخر — ${L.client.get(c.clientId)?.name} (${dt(c.remainingAmount)})`,
-                )}
+                text={`${translate("دين متأخر")} — ${nom(L.client.get(c.clientId)?.name)} (${dt(c.remainingAmount)})`}
               />
             ))}
             {d.low.slice(0, 4).map((x) => (
               <Alert
                 key={x.p.id + x.f.id}
                 tone="warning"
-                text={translate(`مخزون منخفض — ${x.p.name} · ${x.f.name} (${num(x.q)} kg)`)}
+                text={`${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`}
               />
             ))}
             {d.packAlerts.slice(0, 3).map((x) => (
               <Alert
                 key={x.c.id}
                 tone="warning"
-                text={translate(`صناديق غير مرجعة — ${x.c.name} (${x.r})`)}
+                text={`${translate("صناديق غير مرجعة")} — ${nom(x.c.name)} (${x.r})`}
               />
             ))}
             {d.pending.slice(0, 2).map((s) => (
-              <Alert key={s.id} tone="warning" text={translate(`دفعة معلقة — ${s.number}`)} />
+              <Alert key={s.id} tone="warning" text={`${translate("دفعة معلقة")} — ${s.number}`} />
             ))}
             {!d.overdue.length && !d.low.length && !d.packAlerts.length && (
               <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>

@@ -152,6 +152,7 @@ function LocalizedToaster() {
       richColors
       position={language === "ar" ? "top-left" : "top-right"}
       dir={language === "ar" ? "rtl" : "ltr"}
+      containerAriaLabel={language === "ar" ? "الإشعارات" : "Notifications"}
     />
   );
 }

@@ -83,7 +83,7 @@ function Soldes() {
                           <td
                             key={pt.id}
                             className="p-2 text-end"
-                            title={`Sorties ${b.given} · Retours ${b.returned}`}
+                            title={`${translate("الصادر")} ${b.given} · ${translate("المرتجع")} ${b.returned}`}
                           >
                             {b.remaining || "—"}
                           </td>

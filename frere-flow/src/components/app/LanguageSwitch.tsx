@@ -8,7 +8,7 @@ export function LanguageSwitch() {
     <div
       className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-card p-1"
       dir="ltr"
-      aria-label="Langue / اللغة"
+      aria-label={language === "ar" ? "اللغة" : "Langue"}
     >
       <Languages className="mx-1 size-4 text-muted-foreground" />
       <Button
@@ -17,6 +17,7 @@ export function LanguageSwitch() {
         aria-pressed={language === "ar"}
         onClick={() => setLanguage("ar")}
       >
+        {/* chaque langue est écrite dans sa propre écriture (convention) : on la retrouve quelle que soit la langue affichée */}
         العربية
       </Button>
       <Button

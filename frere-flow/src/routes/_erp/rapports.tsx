@@ -198,7 +198,12 @@ function Rapports() {
         };
       }),
   };
-  const rows = reports[tab]();
+  // valeurs texte (noms, statuts…) dans la langue choisie, à l'écran comme dans l'export Excel
+  const rows = reports[tab]().map((r) =>
+    Object.fromEntries(
+      Object.entries(r).map(([k, v]) => [k, typeof v === "string" ? translate(v) : v]),
+    ),
+  );
   const cols = rows[0] ? Object.keys(rows[0]) : [];
 
   return (

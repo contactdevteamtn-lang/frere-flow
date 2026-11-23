@@ -51,7 +51,9 @@ function Historique() {
               >
                 <option value="all">{<Text>{"كل الكيانات"}</Text>}</option>
                 {entities.map((e) => (
-                  <option key={e}>{e}</option>
+                  <option key={e} value={e}>
+                    {translate(e)}
+                  </option>
                 ))}
               </NativeSelect>
               <NativeSelect

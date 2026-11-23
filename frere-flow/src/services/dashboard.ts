@@ -96,13 +96,14 @@ export function buildDashboardData(
     ...Object.fromEntries(
       state.products
         .slice(0, 5)
-        .map((product) => [product.name, stockOf(state, product.id, frigo.id)]),
+        // clé = identifiant du produit (le nom affiché est traduit dans le graphique)
+        .map((product) => [product.id, stockOf(state, product.id, frigo.id)]),
     ),
   }));
   const packDist = state.packagingTypes
     .filter((type) => !type.clientOwned)
     .map((type) => ({
-      name: type.name,
+      name: translate(type.name),
       hex: type.hex,
       value: packBalance(state, { typeId: type.id, teamId: scopeTeamId }).remaining,
     }));

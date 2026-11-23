@@ -265,7 +265,7 @@ function Shell() {
             <div className="hidden text-end sm:block">
               <p className="text-sm font-semibold leading-tight">{translate(me.name ?? "")}</p>
               <p className="text-xs text-muted-foreground">
-                {roleName}
+                {translate(roleName)}
                 {readOnly && (
                   <span className="ms-2 rounded-full bg-warning/15 px-2 py-0.5 font-medium text-warning-foreground">
                     {translate("اطلاع فقط")}
@@ -280,7 +280,7 @@ function Shell() {
               aria-label={translate("حسابي")}
               className="grid size-9 place-items-center rounded-full bg-secondary font-semibold text-primary hover:ring-2 hover:ring-primary/40"
             >
-              {me.name
+              {translate(me.name ?? "")
                 .split(" ")
                 .map((x) => x[0])
                 .slice(0, 2)
