@@ -39,6 +39,7 @@ const OP_NAMES = new Map<(...a: any[]) => AppState, string>([
   [ops.addPackMovement, "addPackMovement"],
   [ops.addCash, "addCash"],
   [ops.upsert, "upsert"],
+  [ops.saveProduct, "saveProduct"],
   [ops.remove, "remove"],
   [markets.saveMarket, "saveMarket"],
   [markets.saveMarketClient, "saveMarketClient"],

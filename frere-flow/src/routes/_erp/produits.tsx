@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/store/store";
-import { remove, stockOf, stockTotal, upsert } from "@/services/ops";
+import { remove, saveProduct, stockOf, stockTotal } from "@/services/ops";
 import type { Product } from "@/types";
 import { DataTable } from "@/components/app/DataTable";
-import { Confirm, Field, FormDialog, NomAutreLangue } from "@/components/app/forms";
+import { Confirm, Field, FormDialog, NativeSelect, NomAutreLangue } from "@/components/app/forms";
 import { PageHeader, Panel, Status } from "@/components/app/ui";
 import { dt, num } from "@/lib/format";
 
@@ -33,6 +33,8 @@ export const Route = createFileRoute("/_erp/produits")({
 });
 
 type Draft = Omit<Product, "id"> & { id?: string };
+/** Stock saisi directement dans le formulaire produit : frigo choisi + quantité (facultative) */
+type Stock = { frigoId: string; quantity: number };
 const blank = (): Draft => ({
   reference: "",
   name: "",
@@ -48,6 +50,13 @@ function Produits() {
   const { state, run, can, readOnly } = useApp();
   const manage = can("administration") || can("caisse");
   const [edit, setEdit] = useState<Draft | null>(null);
+  const [stock, setStock] = useState<Stock>({ frigoId: "", quantity: 0 });
+  const canStock = can("stock");
+  const frigos = state.frigos.filter((f) => f.active);
+  const ouvrir = (d: Draft) => {
+    setStock({ frigoId: frigos[0]?.id ?? "", quantity: 0 });
+    setEdit(d);
+  };
   const [del, setDel] = useState<string | null>(null);
   const [lang, setLang] = useState<DisplayLang>(language);
   const rows = state.products.map((p) => ({ ...p, total: stockTotal(state, p.id) }));
@@ -59,7 +68,7 @@ function Produits() {
         subtitle={translate("منتجات مشتركة بين فيغو 1 وفيغو 2 — مخزون مستقل لكل غرفة تبريد")}
         actions={
           manage && (
-            <Button onClick={() => setEdit(blank())}>
+            <Button onClick={() => ouvrir(blank())}>
               <Plus className="size-4" />
               {<Text>{" منتج جديد"}</Text>}
             </Button>
@@ -122,7 +131,7 @@ function Produits() {
                     header: "",
                     cell: (r: (typeof rows)[number]) => (
                       <div className="flex">
-                        <Button size="icon" variant="ghost" onClick={() => setEdit(r)}>
+                        <Button size="icon" variant="ghost" onClick={() => ouvrir(r)}>
                           <Pencil className="size-4" />
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => setDel(r.id)}>
@@ -143,11 +152,15 @@ function Produits() {
           title={edit.id ? translate("تعديل المنتج") : translate("منتج جديد")}
           onSubmit={() =>
             edit.name &&
-            run(upsert, "products", {
-              ...edit,
-              reference:
-                edit.reference || `PDT-${String(state.products.length + 1).padStart(3, "0")}`,
-            }) &&
+            run(
+              saveProduct,
+              {
+                ...edit,
+                reference:
+                  edit.reference || `PDT-${String(state.products.length + 1).padStart(3, "0")}`,
+              },
+              canStock && stock.quantity > 0 && stock.frigoId ? stock : null,
+            ) &&
             setEdit(null)
           }
         >
@@ -217,6 +230,45 @@ function Produits() {
                 onChange={(e) => setEdit({ ...edit, alertThreshold: Number(e.target.value) })}
               />
             </Field>
+            {canStock && frigos.length > 0 && (
+              <>
+                <Field label={translate("غرفة التبريد")}>
+                  <NativeSelect
+                    value={stock.frigoId}
+                    onChange={(e) => setStock({ ...stock, frigoId: e.target.value })}
+                  >
+                    {frigos.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {translate(f.name ?? "")}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {edit.id && stock.frigoId && (
+                    <p className="text-xs text-muted-foreground">
+                      {<Text>{"الحالي: "}</Text>}
+                      {num(stockOf(state, edit.id, stock.frigoId))} {translate(edit.unit ?? "")}
+                    </p>
+                  )}
+                </Field>
+                <Field
+                  label={
+                    edit.id
+                      ? translate("كمية تضاف إلى المخزون (اختياري)")
+                      : translate("الكمية الأولية (اختياري)")
+                  }
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder={translate("مثال: 500")}
+                    value={stock.quantity || ""}
+                    onChange={(e) => setStock({ ...stock, quantity: Number(e.target.value) })}
+                  />
+                </Field>
+              </>
+            )}
             <Field label={translate("نشط")}>
               <div className="pt-1.5">
                 <Switch

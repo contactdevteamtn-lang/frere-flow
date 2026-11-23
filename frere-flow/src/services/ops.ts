@@ -1,6 +1,6 @@
 // Business services: pure functions (state, input) => new state.
 // When a real API exists, each function maps to one endpoint.
-import type { AppState, ID, PaymentMethod, StockMovementType, Credit } from "@/types";
+import type { AppState, ID, PaymentMethod, Product, StockMovementType, Credit } from "@/types";
 
 export class BusinessError extends Error {}
 
@@ -488,6 +488,38 @@ export function addStockMovement(
     `${inp.movementType} ${inp.quantity} — ${p}`,
     date,
   );
+  return s;
+}
+
+// ---------- Produit + stock dans un frigo (un seul enregistrement) ----------
+/**
+ * Crée ou modifie un produit et, si une quantité est saisie, l'entre directement dans le frigo choisi
+ * (mouvement ENTREE). Évite d'aller dans « Mouvements » après la création du produit.
+ */
+export function saveProduct(
+  prev: AppState,
+  item: Omit<Product, "id"> & { id?: ID },
+  stock: { frigoId: ID; quantity: number } | null,
+  userId: ID,
+  date: string,
+): AppState {
+  let s = upsert(prev, "products", item, userId, date);
+  if (stock && stock.quantity > 0) {
+    const productId = item.id ?? s.products[0]!.id; // nouveau produit : ajouté en tête de liste
+    s = addStockMovement(
+      s,
+      {
+        productId,
+        frigoId: stock.frigoId,
+        quantity: stock.quantity,
+        movementType: "ENTREE",
+        reference: s.products.find((p) => p.id === productId)?.reference ?? "",
+        notes: item.id ? "إضافة من بطاقة المنتج" : "مخزون أولي",
+      },
+      userId,
+      date,
+    );
+  }
   return s;
 }
 

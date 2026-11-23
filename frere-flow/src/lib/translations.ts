@@ -361,6 +361,10 @@ export const translations: Record<string, string> = {
   "منتجات مشتركة بين فيغو 1 وفيغو 2 — مخزون مستقل لكل غرفة تبريد":
     "Produits partagés entre Figo 1 et Figo 2 — stock suivi par frigo",
   "منتج جديد": "Nouveau produit",
+  "الكمية الأولية (اختياري)": "Quantité initiale (facultatif)",
+  "كمية تضاف إلى المخزون (اختياري)": "Quantité à ajouter au stock (facultatif)",
+  "مخزون أولي": "Stock initial",
+  "إضافة من بطاقة المنتج": "Ajout depuis la fiche produit",
   الفئة: "Catégorie",
   السعر: "Prix",
   "تعديل المنتج": "Modifier le produit",

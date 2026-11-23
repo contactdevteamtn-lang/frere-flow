@@ -548,6 +548,23 @@ const RULES: Record<string, Rule> = {
     if (!rule) fail(V.invalid);
     return [c, rule(s, obj(item))];
   },
+  // produit + (facultatif) quantité entrée dans un frigo actif
+  saveProduct: (s, [item, st]) => {
+    const p = product(s, obj(item));
+    if (st === null || st === undefined) return [p, null];
+    const x = obj(st);
+    if (
+      x["quantity"] === undefined ||
+      x["quantity"] === null ||
+      x["quantity"] === "" ||
+      x["quantity"] === 0
+    )
+      return [p, null];
+    return [
+      p,
+      { frigoId: ref(s, "frigos", x["frigoId"], { active: true }), quantity: qty(x["quantity"]) },
+    ];
+  },
   remove: (s, [c, id]) => {
     if (!(String(c) in COLLS)) fail(V.invalid);
     return [c, ref(s, c as keyof typeof COLLS, id)];
