@@ -253,7 +253,8 @@ export function buildSeed(): AppState {
     frigos: [
       {
         id: "frg_1",
-        name: "غرفة التبريد 1",
+        name: "غرفة تبريد فوزي",
+        nameAlt: "Frigo Fawzi",
         code: "FR1",
         capacity: 20000,
         location: "المنطقة الصناعية، صفاقس",
@@ -262,20 +263,12 @@ export function buildSeed(): AppState {
       },
       {
         id: "frg_2",
-        name: "غرفة التبريد 2",
+        name: "غرفة تبريد حسام",
+        nameAlt: "Frigo Houssem",
         code: "FR2",
         capacity: 12000,
         location: "طريق قابس كلم 4",
         description: "الخضروات الجذرية",
-        active: true,
-      },
-      {
-        id: "frg_3",
-        name: "غرفة التبريد 3",
-        code: "FR3",
-        capacity: 8000,
-        location: "ساقية الدائر",
-        description: "فواكه",
         active: true,
       },
     ],
