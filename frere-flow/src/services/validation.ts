@@ -256,20 +256,20 @@ function client(s: AppState, item: R) {
 }
 
 function product(s: AppState, item: R) {
-  existing(s, "products", item);
-  let r = text(item["reference"], { max: 20, msg: V.productRef }).toUpperCase().replace(/\s+/g, "");
+  const old = existing(s, "products", item);
   const others = s.products
     .filter((x) => x.id !== item["id"])
     .map((x) => x.reference.toUpperCase());
-  // référence automatique (PDT-008…) : jamais en double ; une référence tapée en double est refusée
-  if (!r || (!item["id"] && /^PDT-\d{3}$/.test(r) && others.includes(r)))
-    r = nextCode(
-      others.filter((x) => /^PDT-\d+$/.test(x)),
-      "PDT-",
-      3,
-    );
-  if (!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(r)) fail(V.productRef);
-  if (others.includes(r)) fail(V.refUsed);
+  // Référence toujours attribuée par le système (jamais saisie) :
+  //  - nouveau produit : PDT-001, PDT-002… (suivante libre, jamais en double)
+  //  - modification : la référence existante est conservée (toute valeur envoyée est ignorée)
+  const r = old
+    ? String(old["reference"])
+    : nextCode(
+        others.filter((x) => /^PDT-\d+$/.test(x)),
+        "PDT-",
+        3,
+      );
   const unit = text(item["unit"] || "kg", { max: 10, msg: V.unit });
   if (!/^[\p{L}.]{1,10}$/u.test(unit)) fail(V.unit);
   return withId(item, {

@@ -52,6 +52,16 @@ function Produits() {
   const [edit, setEdit] = useState<Draft | null>(null);
   const [stock, setStock] = useState<Stock>({ frigoId: "", quantity: 0 });
   const canStock = can("stock");
+  // aperçu de la référence qui sera attribuée (même calcul que le serveur : PDT- + numéro suivant)
+  const prochaineReference = `PDT-${String(
+    Math.max(
+      0,
+      ...state.products
+        .map((p) => /^PDT-(d+)$/i.exec(p.reference)?.[1])
+        .filter(Boolean)
+        .map(Number),
+    ) + 1,
+  ).padStart(3, "0")}`;
   const frigos = state.frigos.filter((f) => f.active);
   const ouvrir = (d: Draft) => {
     setStock({ frigoId: frigos[0]?.id ?? "", quantity: 0 });
@@ -154,11 +164,7 @@ function Produits() {
             edit.name &&
             run(
               saveProduct,
-              {
-                ...edit,
-                reference:
-                  edit.reference || `PDT-${String(state.products.length + 1).padStart(3, "0")}`,
-              },
+              edit, // référence attribuée par le système (jamais saisie)
               canStock && stock.quantity > 0 && stock.frigoId ? stock : null,
             ) &&
             setEdit(null)
@@ -183,12 +189,13 @@ function Produits() {
             />
             <Field label={translate("المرجع")}>
               <Input
-                maxLength={20}
+                readOnly
+                disabled
                 dir="ltr"
-                placeholder={translate("مثال: PDT-008 (فارغ = تلقائي)")}
-                value={edit.reference}
-                onChange={(e) => setEdit({ ...edit, reference: e.target.value })}
+                className="font-mono"
+                value={edit.id ? edit.reference : prochaineReference}
               />
+              {!edit.id && <p className="text-xs text-muted-foreground">{translate("تلقائي")}</p>}
             </Field>
             <Field label={translate("الفئة")}>
               <Input

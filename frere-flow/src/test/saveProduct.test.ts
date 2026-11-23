@@ -62,6 +62,37 @@ describe("saveProduct", () => {
     expect(r.products.length).toBe(s.products.length); // modifié, pas dupliqué
   });
 
+  it("référence toujours automatique : la suivante libre, une saisie est ignorée", () => {
+    const s = buildSeed();
+    const max = Math.max(
+      ...s.products.map((p) => Number(/^PDT-(\d+)$/.exec(p.reference)?.[1] ?? 0)),
+    );
+    const attendu = `PDT-${String(max + 1).padStart(3, "0")}`;
+    const r1 = executer(s, { ...nouveau, reference: "" }, null);
+    expect(r1.products.find((x) => x.name === "فلفل")!.reference).toBe(attendu);
+    // une référence envoyée (même en double ou fantaisiste) est ignorée
+    const doublon = s.products[0]!.reference;
+    for (const reference of [doublon, "MA-REF", "<script>"]) {
+      const r = executer(s, { ...nouveau, reference }, null);
+      expect(r.products.find((x) => x.name === "فلفل")!.reference).toBe(attendu);
+    }
+    // deux créations successives : jamais la même référence
+    const [p2] = validateOp(r1, "saveProduct", [{ ...nouveau, name: "ثوم" }, null], TODAY);
+    const r2 = saveProduct(r1, p2 as never, null, "u_super", NOW);
+    expect(r2.products.find((x) => x.name === "ثوم")!.reference).toBe(
+      `PDT-${String(max + 2).padStart(3, "0")}`,
+    );
+  });
+
+  it("modification : la référence existante est conservée", () => {
+    const s = buildSeed();
+    const p = s.products[0]!;
+    const r = executer(s, { ...p, reference: "AUTRE-REF", salePrice: 9 }, null);
+    const apres = r.products.find((x) => x.id === p.id)!;
+    expect(apres.reference).toBe(p.reference);
+    expect(apres.salePrice).toBe(9);
+  });
+
   it("refuse un frigo inconnu, inactif ou une quantité invalide", () => {
     const s = buildSeed();
     s.frigos[0]!.active = false;

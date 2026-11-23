@@ -364,6 +364,7 @@ export const translations: Record<string, string> = {
   "الكمية الأولية (اختياري)": "Quantité initiale (facultatif)",
   "كمية تضاف إلى المخزون (اختياري)": "Quantité à ajouter au stock (facultatif)",
   "مخزون أولي": "Stock initial",
+  تلقائي: "Automatique",
   "إضافة من بطاقة المنتج": "Ajout depuis la fiche produit",
   الفئة: "Catégorie",
   السعر: "Prix",
