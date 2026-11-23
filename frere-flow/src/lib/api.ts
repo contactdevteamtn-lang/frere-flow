@@ -1,6 +1,6 @@
 // Client HTTP de l'API (frere-flow-backend).
 // La session est un cookie HttpOnly posé par le serveur : aucun jeton n'est lisible ni stocké par le site.
-// Adresse : VITE_API_URL (fichier .env), sinon le port 4000 de la machine qui sert le site.
+// Adresse : VITE_API_URL (fichier .env), sinon /api en production et le port 4000 en développement.
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -16,6 +16,9 @@ export const NETWORK_MESSAGE = "تعذر الاتصال بالخادم";
 export function apiUrl() {
   const configured = import.meta.env["VITE_API_URL"] as string | undefined;
   if (configured) return configured.replace(/\/$/, "");
+  // Production : l'API est servie à la même adresse que le site (Caddy, ou relais /api du serveur du site)
+  if (import.meta.env.PROD) return "/api";
+  // Développement : port 4000 de la machine qui sert le site
   return `${window.location.protocol}//${window.location.hostname}:4000/api`;
 }
 
