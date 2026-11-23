@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp, useLookups, useTeamScope } from "@/store/store";
-import { cancelSale, createSale, setSaleStatus, stockOf, type SaleInput } from "@/services/ops";
+import {
+  cancelSale,
+  createSale,
+  saleStatusChoices,
+  setSaleStatus,
+  stockOf,
+  type SaleInput,
+} from "@/services/ops";
 import type { Sale } from "@/types";
 import { DataTable } from "@/components/app/DataTable";
 import { Confirm, Field, FormDialog, NativeSelect, Edit } from "@/components/app/forms";
@@ -259,17 +266,19 @@ function Ventes() {
                 <b>{dt(view.remainingAmount)}</b>
               </div>
             </div>
-            {can("caisse") && view.saleStatusId !== "ss_cancelled" && (
+            {/* statut : « Payée / Partielle » calculés d'après les paiements, « Annulée » par le bouton
+                d'annulation — seul « En attente / Confirmée » se choisit, avant tout paiement */}
+            {can("caisse") && saleStatusChoices(state, view).length > 1 && (
               <Field label={translate("تغيير الحالة")}>
                 <NativeSelect
                   value={view.saleStatusId}
                   onChange={(e) => {
-                    run(setSaleStatus, view.id, e.target.value);
-                    setView({ ...view, saleStatusId: e.target.value });
+                    if (run(setSaleStatus, view.id, e.target.value))
+                      setView({ ...view, saleStatusId: e.target.value });
                   }}
                 >
                   {state.saleStatuses
-                    .filter((s) => s.code !== "CANCELLED")
+                    .filter((s) => saleStatusChoices(state, view).includes(s.id))
                     .map((s) => (
                       <option key={s.id} value={s.id}>
                         {translate(s.label ?? "")}
@@ -277,6 +286,11 @@ function Ventes() {
                     ))}
                 </NativeSelect>
               </Field>
+            )}
+            {view.saleStatusId !== "ss_cancelled" && (
+              <p className="text-xs text-muted-foreground">
+                {translate("الحالة تُحسب تلقائياً من المدفوعات.")}
+              </p>
             )}
           </DialogContent>
         </Dialog>

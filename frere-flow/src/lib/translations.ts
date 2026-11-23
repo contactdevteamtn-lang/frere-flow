@@ -368,6 +368,24 @@ export const translations: Record<string, string> = {
   "سعر الوحدة (د.ت)": "Prix unitaire (DT)",
   المجموع: "Total",
   العربية: "Arabe",
+  "عملية البيع غير موجودة": "Vente introuvable",
+  "عملية البيع ملغاة": "Cette vente est annulée",
+  "يوم السوق مغلق: لا يمكن إلغاء مبيعاته":
+    "Journée de marché clôturée : ses ventes ne peuvent plus être annulées",
+  "إلغاء بيع": "Annulation de la vente",
+  "الحالة تُحسب تلقائياً من المدفوعات: سجّل دفعة، أو استعمل زر الإلغاء لإلغاء البيع":
+    "Le statut est calculé d’après les paiements : enregistrez un paiement, ou utilisez le bouton d’annulation pour annuler la vente",
+  "الحالة تُحسب تلقائياً من المدفوعات: سجّل دفعة":
+    "Le statut est calculé d’après les paiements : enregistrez un paiement",
+  "الحالة تُحسب تلقائياً من المدفوعات.":
+    "Le statut est calculé automatiquement d’après les paiements.",
+  "الدين ملغى: لا يمكن تسجيل دفعة عليه": "Crédit annulé : aucun paiement ne peut y être enregistré",
+  "دين مرتبط ببيع: يُسدَّد بتسجيل دفعة، ويُلغى بإلغاء عملية البيع":
+    "Crédit lié à une vente : il se règle par un paiement et s’annule en annulant la vente",
+  "يُسدَّد هذا الدين بتسجيل دفعة، ويُلغى بإلغاء عملية البيع.":
+    "Ce crédit se règle en enregistrant un paiement et s’annule en annulant la vente.",
+  "رصيد الصندوق غير كافٍ": "Solde de caisse insuffisant",
+  "TND متوفرة": "TND disponibles",
   الإشعارات: "Notifications",
   الفرنسية: "Français",
   "العربية / الفرنسية": "Arabe / Français",

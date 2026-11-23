@@ -9,6 +9,7 @@ import { useApp, useLookups, useTeamScope } from "@/store/store";
 import {
   addCreditPayment,
   addManualCredit,
+  creditStatusChoices,
   effectiveCreditCode,
   setCreditStatus,
   isMarketCredit,
@@ -275,20 +276,37 @@ function Credits() {
                 </b>
               </div>
             </div>
-            {can("caisse") && (
-              <Field label={translate("حالة الدين")}>
-                <NativeSelect
-                  value={state.credits.find((c) => c.id === hist.id)?.creditStatusId}
-                  onChange={(e) => run(setCreditStatus, hist.id, e.target.value)}
-                >
-                  {state.creditStatuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {translate(s.label ?? "")}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Field>
-            )}
+            {/* statut calculé d'après les paiements ; un crédit de vente suit la vente ;
+                seul un crédit manuel peut être annulé (dette abandonnée) ou réactivé */}
+            {(() => {
+              const actuel = state.credits.find((c) => c.id === hist.id);
+              if (!actuel) return null;
+              const choix = creditStatusChoices(state, actuel);
+              return can("caisse") && choix.length > 1 ? (
+                <Field label={translate("حالة الدين")}>
+                  <NativeSelect
+                    value={actuel.creditStatusId}
+                    onChange={(e) => run(setCreditStatus, hist.id, e.target.value)}
+                  >
+                    {state.creditStatuses
+                      .filter((s) => choix.includes(s.id))
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {translate(s.label ?? "")}
+                        </option>
+                      ))}
+                  </NativeSelect>
+                </Field>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {translate(
+                    actuel.saleId
+                      ? "يُسدَّد هذا الدين بتسجيل دفعة، ويُلغى بإلغاء عملية البيع."
+                      : "الحالة تُحسب تلقائياً من المدفوعات.",
+                  )}
+                </p>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       )}

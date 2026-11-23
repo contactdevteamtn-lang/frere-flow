@@ -256,20 +256,43 @@ export function cancelSale(
   date: string,
 ): AppState {
   const s = structuredClone(prev);
-  const sale = s.sales.find((x) => x.id === saleId)!;
+  const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("عملية البيع غير موجودة");
   if (sale.saleStatusId === saleStatusId(s, "CANCELLED")) return prev;
+  const trip = sale.marketTripId ? s.marketTrips.find((t) => t.id === sale.marketTripId) : null;
+  // Vente du marché : la marchandise n'est jamais sortie du frigo à la vente (elle était dans le camion).
+  // Tant que le jour est ouvert, l'annulation la remet dans le camion (calcul automatique) ;
+  // une fois le jour fermé, les comptes du jour sont figés.
+  if (trip && trip.status !== "OPEN")
+    throw new BusinessError("يوم السوق مغلق: لا يمكن إلغاء مبيعاته");
   sale.saleStatusId = saleStatusId(s, "CANCELLED");
-  for (const it of s.saleItems.filter((i) => i.saleId === saleId)) {
-    s.stockMovements.unshift({
-      id: nextId(s, "mv"),
-      productId: it.productId,
-      frigoId: sale.frigoId,
-      quantity: it.quantity,
-      movementType: "ENTREE",
+  if (!trip)
+    for (const it of s.saleItems.filter((i) => i.saleId === saleId)) {
+      s.stockMovements.unshift({
+        id: nextId(s, "mv"),
+        productId: it.productId,
+        frigoId: sale.frigoId,
+        quantity: it.quantity,
+        movementType: "ENTREE",
+        date,
+        userId,
+        reference: sale.number,
+        notes: "إلغاء بيع — إعادة المخزون",
+      });
+    }
+  // Caisses livrées (ou reçues) avec la vente : mouvement inverse, le solde du client revient à l'état d'avant
+  for (const pk of prev.packagingMovements.filter((m) => m.saleId === saleId)) {
+    s.packagingMovements.unshift({
+      id: nextId(s, "pk"),
+      clientId: pk.clientId,
+      packagingTypeId: pk.packagingTypeId,
+      teamId: pk.teamId,
+      saleId,
+      type: pk.type === "SORTIE" ? "RETOUR" : "SORTIE",
+      quantity: pk.quantity,
       date,
       userId,
-      reference: sale.number,
-      notes: "إلغاء بيع — إعادة المخزون",
+      notes: `إلغاء بيع ${sale.number}`,
     });
   }
   for (const c of s.credits.filter((c) => c.saleId === saleId))
@@ -303,6 +326,17 @@ export function cancelSale(
   return s;
 }
 
+/**
+ * Statuts qu'on peut choisir à la main pour une vente. « Payée » / « Partielle » sont calculés d'après
+ * les paiements, « Annulée » ne s'obtient que par l'annulation (qui rend le stock et annule le crédit) :
+ * seul le suivi « En attente » ↔ « Confirmée » reste manuel, et seulement avant tout paiement.
+ */
+export function saleStatusChoices(s: AppState, sale: { saleStatusId: ID; paidAmount: number }) {
+  const code = s.saleStatuses.find((x) => x.id === sale.saleStatusId)?.code;
+  if (code === "CANCELLED" || sale.paidAmount > 0) return [sale.saleStatusId];
+  return [saleStatusId(s, "PENDING"), saleStatusId(s, "CONFIRMED")];
+}
+
 export function setSaleStatus(
   prev: AppState,
   saleId: ID,
@@ -311,7 +345,15 @@ export function setSaleStatus(
   date: string,
 ): AppState {
   const s = structuredClone(prev);
-  const sale = s.sales.find((x) => x.id === saleId)!;
+  const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("عملية البيع غير موجودة");
+  if (sale.saleStatusId === statusId) return prev;
+  if (sale.saleStatusId === saleStatusId(s, "CANCELLED"))
+    throw new BusinessError("عملية البيع ملغاة");
+  if (!saleStatusChoices(s, sale).includes(statusId))
+    throw new BusinessError(
+      "الحالة تُحسب تلقائياً من المدفوعات: سجّل دفعة، أو استعمل زر الإلغاء لإلغاء البيع",
+    );
   const old = s.saleStatuses.find((x) => x.id === sale.saleStatusId)?.label;
   sale.saleStatusId = statusId;
   audit(
@@ -336,6 +378,11 @@ export function addCreditPayment(
   const s = structuredClone(prev);
   const c = s.credits.find((x) => x.id === inp.creditId);
   if (!c) throw new BusinessError("الدين غير موجود");
+  const venteAnnulee =
+    !!c.saleId &&
+    s.sales.find((x) => x.id === c.saleId)?.saleStatusId === saleStatusId(s, "CANCELLED");
+  if (c.creditStatusId === creditStatusId(s, "CANCELLED") || venteAnnulee)
+    throw new BusinessError("الدين ملغى: لا يمكن تسجيل دفعة عليه");
   const amount = round(inp.amount);
   if (!(amount > 0)) throw new BusinessError("المبلغ غير صالح");
   if (amount > c.remainingAmount + 1e-9)
@@ -422,6 +469,22 @@ export function manualCredit(
   return s;
 }
 
+/** Statut d'un crédit d'après ses montants (« En retard » se calcule à l'affichage avec la date) */
+const statutCalcule = (s: AppState, c: Credit) =>
+  creditStatusId(s, c.remainingAmount <= 0 ? "PAID" : c.paidAmount > 0 ? "PARTIAL" : "ACTIVE");
+
+/**
+ * Statuts qu'on peut choisir à la main pour un crédit. « Payé » / « Partiel » sont calculés d'après les
+ * paiements. Un crédit lié à une vente suit la vente (il est annulé par l'annulation de la vente).
+ * Un crédit manuel peut être annulé (dette abandonnée) puis réactivé.
+ */
+export function creditStatusChoices(s: AppState, c: Credit) {
+  if (c.saleId) return [c.creditStatusId];
+  if (c.creditStatusId === creditStatusId(s, "CANCELLED"))
+    return [c.creditStatusId, statutCalcule(s, c)];
+  return [c.creditStatusId, creditStatusId(s, "CANCELLED")];
+}
+
 export function setCreditStatus(
   prev: AppState,
   creditId: ID,
@@ -430,7 +493,13 @@ export function setCreditStatus(
   date: string,
 ): AppState {
   const s = structuredClone(prev);
-  const c = s.credits.find((x) => x.id === creditId)!;
+  const c = s.credits.find((x) => x.id === creditId);
+  if (!c) throw new BusinessError("الدين غير موجود");
+  if (c.creditStatusId === statusId) return prev;
+  if (c.saleId)
+    throw new BusinessError("دين مرتبط ببيع: يُسدَّد بتسجيل دفعة، ويُلغى بإلغاء عملية البيع");
+  if (!creditStatusChoices(s, c).includes(statusId))
+    throw new BusinessError("الحالة تُحسب تلقائياً من المدفوعات: سجّل دفعة");
   c.creditStatusId = statusId;
   audit(
     s,
@@ -570,6 +639,14 @@ export function addPackMovement(
 }
 
 // ---------- Cash ----------
+/** Solde de la caisse d'un Figo : encaissements − décaissements */
+export const cashBalance = (s: AppState, teamId: ID) =>
+  round(
+    s.cash
+      .filter((c) => c.teamId === teamId)
+      .reduce((a, c) => a + (c.type === "ENCAISSEMENT" ? c.amount : -c.amount), 0),
+  );
+
 export function addCash(
   prev: AppState,
   inp: {
@@ -585,6 +662,12 @@ export function addCash(
 ): AppState {
   const s = structuredClone(prev);
   if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("فريق فيغو والمبلغ مطلوبان");
+  if (inp.type === "DECAISSEMENT") {
+    // on ne peut pas sortir plus d'argent qu'il n'y en a dans la caisse de ce Figo
+    const solde = cashBalance(s, inp.teamId);
+    if (inp.amount > solde + 1e-9)
+      throw new BusinessError(`رصيد الصندوق غير كافٍ (${solde} TND متوفرة)`);
+  }
   const id = nextId(s, "cash");
   s.cash.unshift({ id, ...inp, userId, date });
   audit(
