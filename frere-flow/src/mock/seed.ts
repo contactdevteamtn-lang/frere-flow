@@ -293,6 +293,7 @@ export function buildSeed(): AppState {
       { id: "mkt_monastir", name: "سوق المنستير", city: "المنستير", active: true },
     ],
     marketTrips: [],
+    invoices: [],
     sales: [],
     saleItems: [],
     payments: [],

@@ -111,6 +111,10 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   OFF: { label: translate("غير نشط"), cls: "bg-muted text-muted-foreground" },
   FAIBLE: { label: translate("مخزون منخفض"), cls: "bg-destructive/10 text-destructive" },
   OK: { label: translate("متوفر"), cls: "bg-secondary text-primary-dark" },
+  // factures
+  VALIDEE: { label: translate("صالحة"), cls: "bg-secondary text-primary-dark" },
+  A_VOIR: { label: translate("للمراجعة"), cls: "bg-warning/15 text-warning-foreground" },
+  ANNULEE: { label: translate("ملغاة"), cls: "bg-muted text-muted-foreground line-through" },
 };
 
 export function Status({ value, label }: { value: string; label?: string }) {

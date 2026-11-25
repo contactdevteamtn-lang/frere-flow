@@ -310,3 +310,73 @@ describe("invariants sur 200 opérations aléatoires", () => {
     expect([...problemes]).toEqual([]);
   });
 });
+
+describe("factures", () => {
+  const facture = (s: AppState, saleId: string) => s.invoices.find((f) => f.saleId === saleId)!;
+
+  it("chaque vente crée sa facture « validée », numérotée sans doublon", () => {
+    expect(base.invoices.length).toBe(base.sales.length);
+    expect(new Set(base.invoices.map((f) => f.number)).size).toBe(base.invoices.length);
+    const s = vente(base, 0);
+    const f = facture(s, s.sales[0]!.id);
+    expect(f).toMatchObject({
+      status: "VALIDEE",
+      amount: 20,
+      clientId: client.id,
+      teamId: team.id,
+    });
+    expect(f.number).toMatch(/^FAC-\d{4}-\d{4}$/);
+  });
+
+  it("« à voir » demande un motif, puis peut revenir à « validée »", () => {
+    let s = vente(base, 0);
+    const id = facture(s, s.sales[0]!.id).id;
+    expect(() => exec(s, "setInvoiceStatus", id, "A_VOIR", "")).toThrow();
+    s = exec(s, "setInvoiceStatus", id, "A_VOIR", "prix à corriger");
+    expect(s.invoices.find((f) => f.id === id)).toMatchObject({
+      status: "A_VOIR",
+      notes: "prix à corriger",
+    });
+    s = exec(s, "setInvoiceStatus", id, "VALIDEE", "");
+    expect(s.invoices.find((f) => f.id === id)).toMatchObject({ status: "VALIDEE", notes: "" });
+  });
+
+  it("annuler la facture annule la vente (stock, crédit, remboursement) et devient définitif", () => {
+    const stock0 = ops.stockOf(base, p.id, frigo.id);
+    let s = vente(base, 8);
+    const sale = s.sales[0]!;
+    const id = facture(s, sale.id).id;
+    expect(() => exec(s, "setInvoiceStatus", id, "ANNULEE", "")).toThrow();
+    const caisse = ops.cashBalance(s, team.id);
+    s = exec(s, "setInvoiceStatus", id, "ANNULEE", "client a refusé");
+    expect(s.invoices.find((f) => f.id === id)).toMatchObject({
+      status: "ANNULEE",
+      notes: "client a refusé",
+    });
+    expect(code(s, s.sales.find((x) => x.id === sale.id)!.saleStatusId)).toBe("CANCELLED");
+    expect(code(s, s.credits.find((c) => c.saleId === sale.id)!.creditStatusId)).toBe("CANCELLED");
+    expect(ops.stockOf(s, p.id, frigo.id)).toBe(stock0);
+    expect(ops.cashBalance(s, team.id)).toBe(r3(caisse - 8));
+    expect(() => exec(s, "setInvoiceStatus", id, "VALIDEE", "")).toThrow();
+  });
+
+  it("annuler la vente annule aussi sa facture", () => {
+    let s = vente(base, 0);
+    const sale = s.sales[0]!;
+    s = exec(s, "cancelSale", sale.id, "erreur de saisie");
+    expect(facture(s, sale.id).status).toBe("ANNULEE");
+  });
+
+  it("base d'une version précédente : une facture créée pour chaque vente existante", () => {
+    const ancienne = structuredClone(base) as AppState;
+    ancienne.invoices = [];
+    ancienne.sales[0]!.saleStatusId = "ss_cancelled";
+    const n = ops.creerFacturesManquantes(ancienne);
+    expect(n).toBe(ancienne.sales.length);
+    expect(ancienne.invoices.find((f) => f.saleId === ancienne.sales[0]!.id)!.status).toBe(
+      "ANNULEE",
+    );
+    expect(new Set(ancienne.invoices.map((f) => f.number)).size).toBe(n);
+    expect(ops.creerFacturesManquantes(ancienne)).toBe(0); // rien en double au redémarrage suivant
+  });
+});

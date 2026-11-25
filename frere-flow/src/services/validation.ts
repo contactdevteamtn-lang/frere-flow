@@ -470,6 +470,11 @@ const RULES: Record<string, Rule> = {
   },
   cancelSale: (s, [id, r]) => [ref(s, "sales", id), reason(r)],
   setSaleStatus: (s, [id, st]) => [ref(s, "sales", id), ref(s, "saleStatuses", st)],
+  setInvoiceStatus: (s, [id, st, note]) => [
+    ref(s, "invoices", id),
+    oneOf(st, ["VALIDEE", "A_VOIR", "ANNULEE"] as const),
+    reason(note),
+  ],
   addCreditPayment: (s, [i]) => {
     const x = obj(i);
     return [

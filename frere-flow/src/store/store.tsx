@@ -32,6 +32,7 @@ const OP_NAMES = new Map<(...a: any[]) => AppState, string>([
   [ops.createSale, "createSale"],
   [ops.cancelSale, "cancelSale"],
   [ops.setSaleStatus, "setSaleStatus"],
+  [ops.setInvoiceStatus, "setInvoiceStatus"],
   [ops.addCreditPayment, "addCreditPayment"],
   [ops.addManualCredit, "addManualCredit"],
   [ops.setCreditStatus, "setCreditStatus"],
@@ -75,6 +76,7 @@ const LIST_KEYS = [
   "auditLogs",
   "markets",
   "marketTrips",
+  "invoices",
 ] as const;
 
 /** Structure de base (statuts, paramètres) sans données : remplacée par celles du serveur */

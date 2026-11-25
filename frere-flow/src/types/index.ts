@@ -278,6 +278,22 @@ export interface AuditLog {
   date: string;
 }
 
+/** Facture : une par vente, créée automatiquement avec la vente */
+export type InvoiceStatus = "VALIDEE" | "A_VOIR" | "ANNULEE";
+export interface Invoice {
+  id: ID;
+  number: string;
+  saleId: ID;
+  clientId: ID;
+  teamId: ID;
+  amount: number;
+  status: InvoiceStatus;
+  date: string;
+  /** motif « à voir » (ce qu'il faut modifier) ou d'annulation */
+  notes: string;
+  updatedAt?: string;
+}
+
 export interface AppState {
   seq: number;
   sessionUserId: ID | null;
@@ -301,6 +317,7 @@ export interface AppState {
   auditLogs: AuditLog[];
   markets: Market[];
   marketTrips: MarketTrip[];
+  invoices: Invoice[];
   settings: {
     companyName: string;
     currency: string;

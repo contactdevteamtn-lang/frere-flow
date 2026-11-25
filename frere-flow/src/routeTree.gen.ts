@@ -19,6 +19,7 @@ import { Route as ErpEmballagesRouteImport } from './routes/_erp/emballages'
 import { Route as ErpEmballagesMouvementsRouteImport } from './routes/_erp/emballages-mouvements'
 import { Route as ErpEmballagesSoldesRouteImport } from './routes/_erp/emballages-soldes'
 import { Route as ErpEquipesRouteImport } from './routes/_erp/equipes'
+import { Route as ErpFacturesRouteImport } from './routes/_erp/factures'
 import { Route as ErpFrigosRouteImport } from './routes/_erp/frigos'
 import { Route as ErpHistoriqueRouteImport } from './routes/_erp/historique'
 import { Route as ErpMouvementsRouteImport } from './routes/_erp/mouvements'
@@ -81,6 +82,11 @@ const ErpEmballagesSoldesRoute = ErpEmballagesSoldesRouteImport.update({
 const ErpEquipesRoute = ErpEquipesRouteImport.update({
   id: '/equipes',
   path: '/equipes',
+  getParentRoute: () => ErpRoute,
+} as any)
+const ErpFacturesRoute = ErpFacturesRouteImport.update({
+  id: '/factures',
+  path: '/factures',
   getParentRoute: () => ErpRoute,
 } as any)
 const ErpFrigosRoute = ErpFrigosRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/emballages-mouvements': typeof ErpEmballagesMouvementsRoute
   '/emballages-soldes': typeof ErpEmballagesSoldesRoute
   '/equipes': typeof ErpEquipesRoute
+  '/factures': typeof ErpFacturesRoute
   '/frigos': typeof ErpFrigosRoute
   '/historique': typeof ErpHistoriqueRoute
   '/mouvements': typeof ErpMouvementsRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/emballages-mouvements': typeof ErpEmballagesMouvementsRoute
   '/emballages-soldes': typeof ErpEmballagesSoldesRoute
   '/equipes': typeof ErpEquipesRoute
+  '/factures': typeof ErpFacturesRoute
   '/frigos': typeof ErpFrigosRoute
   '/historique': typeof ErpHistoriqueRoute
   '/mouvements': typeof ErpMouvementsRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_erp/emballages-mouvements': typeof ErpEmballagesMouvementsRoute
   '/_erp/emballages-soldes': typeof ErpEmballagesSoldesRoute
   '/_erp/equipes': typeof ErpEquipesRoute
+  '/_erp/factures': typeof ErpFacturesRoute
   '/_erp/frigos': typeof ErpFrigosRoute
   '/_erp/historique': typeof ErpHistoriqueRoute
   '/_erp/mouvements': typeof ErpMouvementsRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/emballages-mouvements'
     | '/emballages-soldes'
     | '/equipes'
+    | '/factures'
     | '/frigos'
     | '/historique'
     | '/mouvements'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/emballages-mouvements'
     | '/emballages-soldes'
     | '/equipes'
+    | '/factures'
     | '/frigos'
     | '/historique'
     | '/mouvements'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/_erp/emballages-mouvements'
     | '/_erp/emballages-soldes'
     | '/_erp/equipes'
+    | '/_erp/factures'
     | '/_erp/frigos'
     | '/_erp/historique'
     | '/_erp/mouvements'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       path: '/equipes'
       fullPath: '/equipes'
       preLoaderRoute: typeof ErpEquipesRouteImport
+      parentRoute: typeof ErpRoute
+    }
+    '/_erp/factures': {
+      id: '/_erp/factures'
+      path: '/factures'
+      fullPath: '/factures'
+      preLoaderRoute: typeof ErpFacturesRouteImport
       parentRoute: typeof ErpRoute
     }
     '/_erp/frigos': {
@@ -497,6 +516,7 @@ interface ErpRouteChildren {
   ErpEmballagesMouvementsRoute: typeof ErpEmballagesMouvementsRoute
   ErpEmballagesSoldesRoute: typeof ErpEmballagesSoldesRoute
   ErpEquipesRoute: typeof ErpEquipesRoute
+  ErpFacturesRoute: typeof ErpFacturesRoute
   ErpFrigosRoute: typeof ErpFrigosRoute
   ErpHistoriqueRoute: typeof ErpHistoriqueRoute
   ErpMouvementsRoute: typeof ErpMouvementsRoute
@@ -522,6 +542,7 @@ const ErpRouteChildren: ErpRouteChildren = {
   ErpEmballagesMouvementsRoute: ErpEmballagesMouvementsRoute,
   ErpEmballagesSoldesRoute: ErpEmballagesSoldesRoute,
   ErpEquipesRoute: ErpEquipesRoute,
+  ErpFacturesRoute: ErpFacturesRoute,
   ErpFrigosRoute: ErpFrigosRoute,
   ErpHistoriqueRoute: ErpHistoriqueRoute,
   ErpMouvementsRoute: ErpMouvementsRoute,

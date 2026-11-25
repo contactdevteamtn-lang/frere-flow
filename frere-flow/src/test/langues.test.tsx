@@ -43,6 +43,7 @@ vi.stubGlobal(
 const PAGES = [
   "/dashboard",
   "/ventes",
+  "/factures",
   "/clients",
   `/clients/${seed.clients[0]!.id}`,
   "/credits",

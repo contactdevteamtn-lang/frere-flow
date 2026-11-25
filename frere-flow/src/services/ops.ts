@@ -1,6 +1,14 @@
 // Business services: pure functions (state, input) => new state.
 // When a real API exists, each function maps to one endpoint.
-import type { AppState, ID, PaymentMethod, Product, StockMovementType, Credit } from "@/types";
+import type {
+  AppState,
+  Credit,
+  ID,
+  InvoiceStatus,
+  PaymentMethod,
+  Product,
+  StockMovementType,
+} from "@/types";
 
 export class BusinessError extends Error {}
 
@@ -236,6 +244,8 @@ export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: str
       notes: own ? `صناديق العميل — عملية بيع ${number}` : `عملية بيع ${number}`,
     });
   }
+  // facture associée, créée avec la vente (statut « validée »)
+  ajouterFacture(s, s.sales[0]!, "VALIDEE", date);
   audit(
     s,
     userId,
@@ -243,6 +253,99 @@ export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: str
     "عملية بيع",
     id,
     `${number} — الإجمالي ${total} TND, المدفوع ${paid} TND`,
+    date,
+  );
+  return s;
+}
+
+// ---------- Factures ----------
+/** Numéro de facture suivant : FAC-AAAA-0001 (jamais en double) */
+function numeroFacture(s: AppState, date: string) {
+  const prefixe = `FAC-${date.slice(0, 4)}-`;
+  const n = s.invoices
+    .filter((f) => f.number.startsWith(prefixe))
+    .map((f) => Number(f.number.slice(prefixe.length)))
+    .filter(Number.isFinite);
+  return `${prefixe}${String(Math.max(0, ...n) + 1).padStart(4, "0")}`;
+}
+function ajouterFacture(
+  s: AppState,
+  sale: AppState["sales"][number],
+  status: InvoiceStatus,
+  date: string,
+) {
+  s.invoices.unshift({
+    id: nextId(s, "fac"),
+    number: numeroFacture(s, sale.saleDate || date),
+    saleId: sale.id,
+    clientId: sale.clientId,
+    teamId: sale.teamId,
+    amount: sale.totalAmount,
+    status,
+    date: sale.saleDate || date,
+    notes: "",
+  });
+}
+export const invoiceOfSale = (s: AppState, saleId: ID) =>
+  s.invoices.find((f) => f.saleId === saleId);
+
+/**
+ * Bases créées avant les factures : une facture pour chaque vente qui n'en a pas
+ * (annulée si la vente est annulée), numérotées dans l'ordre des ventes.
+ * @returns le nombre de factures créées
+ */
+export function creerFacturesManquantes(s: AppState): number {
+  s.invoices ??= [];
+  const avec = new Set(s.invoices.map((f) => f.saleId));
+  const sans = s.sales
+    .filter((v) => !avec.has(v.id))
+    .sort((a, b) => a.saleDate.localeCompare(b.saleDate) || a.number.localeCompare(b.number));
+  const annulee = saleStatusId(s, "CANCELLED");
+  for (const v of sans)
+    ajouterFacture(s, v, v.saleStatusId === annulee ? "ANNULEE" : "VALIDEE", v.saleDate);
+  return sans.length;
+}
+
+/**
+ * Statut d'une facture :
+ *  - « validée » ↔ « à voir » (avec un motif : ce qu'il faut revoir ou modifier) ;
+ *  - « annulée » annule aussi la vente (stock rendu, crédit annulé, remboursement) — définitif.
+ */
+export function setInvoiceStatus(
+  prev: AppState,
+  invoiceId: ID,
+  status: InvoiceStatus,
+  note: string,
+  userId: ID,
+  date: string,
+): AppState {
+  const f = prev.invoices.find((x) => x.id === invoiceId);
+  if (!f) throw new BusinessError("الفاتورة غير موجودة");
+  if (f.status === "ANNULEE") throw new BusinessError("الفاتورة ملغاة: لا يمكن تغييرها");
+  if ((status === "A_VOIR" || status === "ANNULEE") && note.trim().length < 3)
+    throw new BusinessError("اكتب السبب (3 أحرف على الأقل)");
+  if (status === f.status && note === f.notes) return prev;
+  if (status === "ANNULEE") {
+    // l'annulation de la vente annule aussi la facture (voir cancelSale)
+    const s = cancelSale(prev, f.saleId, note, userId, date);
+    const fac = s.invoices.find((x) => x.id === invoiceId)!;
+    fac.notes = note;
+    return s;
+  }
+  const s = structuredClone(prev);
+  const fac = s.invoices.find((x) => x.id === invoiceId)!;
+  const avant = fac.status;
+  fac.status = status;
+  fac.notes = status === "A_VOIR" ? note.trim() : "";
+  fac.updatedAt = date;
+  const libelle = { VALIDEE: "صالحة", A_VOIR: "للمراجعة", ANNULEE: "ملغاة" };
+  audit(
+    s,
+    userId,
+    "تغيير حالة الفاتورة",
+    "الفاتورة",
+    fac.id,
+    `${fac.number}: ${libelle[avant]} → ${libelle[status]}${fac.notes ? ` — ${fac.notes}` : ""}`,
     date,
   );
   return s;
@@ -297,6 +400,12 @@ export function cancelSale(
   }
   for (const c of s.credits.filter((c) => c.saleId === saleId))
     c.creditStatusId = creditStatusId(s, "CANCELLED");
+  // la facture de la vente est annulée avec elle
+  for (const f of s.invoices.filter((x) => x.saleId === saleId)) {
+    f.status = "ANNULEE";
+    f.notes ||= reason;
+    f.updatedAt = date;
+  }
   const refunded =
     s.payments.filter((p) => p.saleId === saleId).reduce((a, p) => a + p.amount, 0) +
     s.creditPayments
