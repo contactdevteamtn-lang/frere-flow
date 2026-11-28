@@ -35,7 +35,7 @@ describe("formulaire de vente : lignes produit", () => {
     const produit = state.products.find((p) => p.active)!;
     fireEvent.change(within(ligne).getByRole("combobox"), { target: { value: produit.id } });
     expect(prix.value).toBe(String(produit.salePrice));
-    expect(quantite.value).toBe("");
+    expect(quantite.value).toBe("1"); // quantité de départ : 1
     expect(ordre()).toEqual(["الكمية (كغ)", "سعر الوحدة (د.ت)"]);
 
     fireEvent.change(quantite, { target: { value: "10" } });

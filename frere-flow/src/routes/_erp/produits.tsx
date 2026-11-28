@@ -12,6 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/store/store";
 import { remove, saveProduct, stockOf, stockTotal } from "@/services/ops";
+import {
+  CATALOGUE,
+  TYPES_PRODUIT,
+  UNITES,
+  dansCatalogue,
+  normaliserNom,
+  typeProduit,
+  uniteProduit,
+} from "@/services/catalogue";
 import type { Product } from "@/types";
 import { DataTable } from "@/components/app/DataTable";
 import { Confirm, Field, FormDialog, NativeSelect, NomAutreLangue } from "@/components/app/forms";
@@ -38,7 +47,7 @@ type Stock = { frigoId: string; quantity: number };
 const blank = (): Draft => ({
   reference: "",
   name: "",
-  category: translate("خضروات"),
+  category: "خضروات",
   unit: "kg",
   salePrice: 0,
   alertThreshold: 150,
@@ -50,7 +59,7 @@ function Produits() {
   const { state, run, can, readOnly } = useApp();
   const manage = can("administration") || can("caisse");
   const [edit, setEdit] = useState<Draft | null>(null);
-  const [stock, setStock] = useState<Stock>({ frigoId: "", quantity: 0 });
+  const [stock, setStock] = useState<Stock>({ frigoId: "", quantity: 1 });
   const canStock = can("stock");
   // aperçu de la référence qui sera attribuée (même calcul que le serveur : PDT- + numéro suivant)
   const prochaineReference = `PDT-${String(
@@ -64,7 +73,8 @@ function Produits() {
   ).padStart(3, "0")}`;
   const frigos = state.frigos.filter((f) => f.active);
   const ouvrir = (d: Draft) => {
-    setStock({ frigoId: frigos[0]?.id ?? "", quantity: 0 });
+    // quantité de départ : 1 (pour un nouveau produit) ; rien à ajouter par défaut en modification
+    setStock({ frigoId: frigos[0]?.id ?? "", quantity: d.id ? 0 : 1 });
     setEdit(d);
   };
   const [del, setDel] = useState<string | null>(null);
@@ -172,14 +182,37 @@ function Produits() {
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={translate("الاسم")} className="sm:col-span-2">
+              {/* choisir dans la liste des fruits et légumes, ou écrire librement */}
               <Input
                 required
                 maxLength={80}
                 autoComplete="off"
-                placeholder={translate("مثال: كوسة")}
+                list="catalogue-produits"
+                placeholder={translate("اختر من القائمة أو اكتب اسماً جديداً")}
                 value={edit.name}
-                onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                onChange={(e) => {
+                  const nom = e.target.value;
+                  const c = dansCatalogue(nom);
+                  // produit connu : type et nom dans l'autre langue remplis automatiquement
+                  setEdit(
+                    c
+                      ? {
+                          ...edit,
+                          name: c.ar === nom ? c.ar : nom,
+                          nameAlt: normaliserNom(nom) === normaliserNom(c.ar) ? c.fr : c.ar,
+                          category: c.type,
+                        }
+                      : { ...edit, name: nom },
+                  );
+                }}
               />
+              <datalist id="catalogue-produits">
+                {CATALOGUE.map((c) => (
+                  <option key={c.ar} value={language === "ar" ? c.ar : c.fr}>
+                    {translate(c.type)}
+                  </option>
+                ))}
+              </datalist>
             </Field>
             <NomAutreLangue
               className="sm:col-span-2"
@@ -197,13 +230,17 @@ function Produits() {
               />
               {!edit.id && <p className="text-xs text-muted-foreground">{translate("تلقائي")}</p>}
             </Field>
-            <Field label={translate("الفئة")}>
-              <Input
-                maxLength={40}
-                placeholder={translate("مثال: خضروات")}
-                value={edit.category}
+            <Field label={translate("النوع")}>
+              <NativeSelect
+                value={typeProduit(edit.category) ?? "خضروات"}
                 onChange={(e) => setEdit({ ...edit, category: e.target.value })}
-              />
+              >
+                {TYPES_PRODUIT.map((t) => (
+                  <option key={t} value={t}>
+                    {translate(t)}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
             <Field label={translate("سعر البيع (د.ت)")}>
               <Input
@@ -217,14 +254,17 @@ function Produits() {
                 onChange={(e) => setEdit({ ...edit, salePrice: Number(e.target.value) })}
               />
             </Field>
-            <Field label={translate("الوحدة")}>
-              <Input
-                maxLength={10}
-                dir="ltr"
-                placeholder={translate("مثال: kg")}
-                value={edit.unit}
+            <Field label={translate("وحدة البيع")}>
+              <NativeSelect
+                value={uniteProduit(edit.unit) ?? "kg"}
                 onChange={(e) => setEdit({ ...edit, unit: e.target.value })}
-              />
+              >
+                {UNITES.map((u) => (
+                  <option key={u} value={u}>
+                    {translate(u)}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
             <Field label={translate("حد التنبيه لكل غرفة تبريد")}>
               <Input
@@ -267,7 +307,7 @@ function Produits() {
                   <Input
                     type="number"
                     min={0}
-                    step="0.01"
+                    step="any"
                     inputMode="decimal"
                     placeholder={translate("مثال: 500")}
                     value={stock.quantity || ""}

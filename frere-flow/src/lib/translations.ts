@@ -370,6 +370,15 @@ export const translations: Record<string, string> = {
   العربية: "Arabe",
   // ── Factures ──
   الفواتير: "Factures",
+  قطعة: "pièce",
+  طن: "tonne",
+  "وحدة البيع": "Unité de vente",
+  "اختر من القائمة أو اكتب اسماً جديداً": "Choisissez dans la liste ou écrivez un nouveau nom",
+  "نوع المنتج غير صحيح: خضروات أو فواكه": "Type de produit invalide : légumes ou fruits",
+  "وحدة البيع غير صحيحة: kg أو قطعة أو طن أو صندوق":
+    "Unité de vente invalide : kg, pièce, tonne ou caisse",
+  "يوجد منتج بنفس الاسم وما زال في المخزون: عدّل المنتج الموجود بدل إنشاء منتج جديد":
+    "Un produit du même nom existe et a encore du stock : modifiez le produit existant au lieu d’en créer un nouveau",
   مستحق: "dû",
   مسدد: "Soldé",
   "بحث عن عميل…": "Rechercher un client…",

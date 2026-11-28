@@ -414,3 +414,43 @@ describe("références automatiques", () => {
     expect(new Set(nums).size).toBe(nums.length);
   });
 });
+
+describe("ajout de produit : type, unité, nom unique, stock à 0 réaffecté", () => {
+  const nouveau = (name: string, extra: Record<string, unknown> = {}) => ({
+    name,
+    category: "fruits",
+    unit: "pièce",
+    salePrice: 2,
+    alertThreshold: 10,
+    active: true,
+    ...extra,
+  });
+  it("type limité à légume / fruits, unité kg / pièce / tonne / caisse (alias acceptés)", () => {
+    const s = exec(base, "saveProduct", nouveau("ليمون"), null);
+    expect(s.products[0]).toMatchObject({ category: "فواكه", unit: "قطعة" });
+    expect(() =>
+      exec(base, "saveProduct", nouveau("ليمون", { category: "épices" }), null),
+    ).toThrow();
+    expect(() => exec(base, "saveProduct", nouveau("ليمون", { unit: "litre" }), null)).toThrow();
+  });
+  it("nom en double refusé (casse, espaces et langue ignorées) tant que le produit a du stock", () => {
+    const avecStock = base.products.find((x) => ops.stockTotal(base, x.id) > 0)!;
+    for (const nom of [avecStock.name, ` ${avecStock.name}  `, avecStock.name.toUpperCase()])
+      expect(() =>
+        exec(base, "saveProduct", nouveau(nom), { frigoId: frigo.id, quantity: 5 }),
+      ).toThrow();
+  });
+  it("produit existant à stock 0 : le nouveau stock lui est affecté (pas de doublon)", () => {
+    let s = exec(base, "saveProduct", nouveau("كيوي"), null);
+    const kiwi = s.products[0]!;
+    const n = s.products.length;
+    s = exec(s, "saveProduct", nouveau("  كيوي "), { frigoId: frigo.id, quantity: 30 });
+    expect(s.products.length).toBe(n);
+    expect(ops.stockOf(s, kiwi.id, frigo.id)).toBe(30);
+    expect(s.products.find((x) => x.id === kiwi.id)!.reference).toBe(kiwi.reference);
+  });
+  it("produit du catalogue : reconnu en arabe comme en français", () => {
+    const s = exec(base, "saveProduct", nouveau("Pastèque", { category: "" }), null);
+    expect(s.products[0]!.category).toBe("فواكه");
+  });
+});

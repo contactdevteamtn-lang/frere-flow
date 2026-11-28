@@ -3,7 +3,8 @@
 // ET par le serveur (frere-flow-backend : impossible à contourner).
 // Chaque règle nettoie la valeur (espaces, format) et ne garde que les champs connus.
 import type { AppState, PermissionKey } from "@/types";
-import { BusinessError } from "./ops";
+import { BusinessError, stockTotal } from "./ops";
+import { dansCatalogue, normaliserNom, typeProduit, uniteProduit } from "./catalogue";
 
 /** Messages (arabe ; traduction française dans src/lib/translations.ts). Chacun donne un exemple. */
 export const V = {
@@ -36,8 +37,9 @@ export const V = {
   reminderDays: "أيام التذكير غير صحيحة: من 0 إلى 365، مثال: 3",
   password: "كلمة المرور ضعيفة: 8 أحرف على الأقل مع حروف وأرقام، مثال: Ferme2026",
   passwordRequired: "كلمة المرور مطلوبة",
-  category: "الفئة غير صحيحة: من 2 إلى 40 حرفاً، مثال: خضروات",
-  unit: "الوحدة غير صحيحة، مثال: kg",
+  category: "نوع المنتج غير صحيح: خضروات أو فواكه",
+  unit: "وحدة البيع غير صحيحة: kg أو قطعة أو طن أو صندوق",
+  nameUsed: "يوجد منتج بنفس الاسم وما زال في المخزون: عدّل المنتج الموجود بدل إنشاء منتج جديد",
   color: "اسم اللون غير صحيح، مثال: أحمر",
   hex: "رمز اللون غير صحيح، مثال: #2E7D32",
   description: "الوصف مطلوب: من 3 إلى 200 حرف، مثال: وقود الشاحنة",
@@ -255,6 +257,15 @@ function client(s: AppState, item: R) {
   });
 }
 
+/** Produit (autre que lui-même) portant le même nom, en arabe ou en français */
+function memeNom(s: AppState, p: { id: unknown; name: string; nameAlt?: string }) {
+  const noms = [p.name, p.nameAlt].map(normaliserNom).filter(Boolean);
+  return s.products.find(
+    (x) =>
+      x.id !== p.id && [x.name, x.nameAlt].map(normaliserNom).some((n) => n && noms.includes(n)),
+  );
+}
+
 function product(s: AppState, item: R) {
   const old = existing(s, "products", item);
   const others = s.products
@@ -270,13 +281,20 @@ function product(s: AppState, item: R) {
         "PDT-",
         3,
       );
-  const unit = text(item["unit"] || "kg", { max: 10, msg: V.unit });
-  if (!/^[\p{L}.]{1,10}$/u.test(unit)) fail(V.unit);
+  // type strict (خضروات / فواكه) et unité de vente (kg, قطعة, طن, صندوق), alias acceptés (« légume », « pièce »…)
+  const unit = uniteProduit(item["unit"] || "kg") ?? fail(V.unit);
+  const name = personName(item["name"]);
+  const nameAlt = nomAlt(item["nameAlt"]);
+  // jamais deux produits du même nom (casse, espaces et variantes d'écriture ignorées, dans les deux langues)
+  if (memeNom(s, { id: item["id"], name, nameAlt })) fail(V.nameUsed);
   return withId(item, {
     reference: r,
-    name: personName(item["name"]),
-    nameAlt: nomAlt(item["nameAlt"]),
-    category: personName(item["category"], 40, V.category),
+    name,
+    nameAlt,
+    // type donné : doit être « خضروات » ou « فواكه » ; type vide : d'après le catalogue
+    category: item["category"]
+      ? (typeProduit(item["category"]) ?? fail(V.category))
+      : (dansCatalogue(name)?.type ?? fail(V.category)),
     unit,
     salePrice: num(item["salePrice"], V.price, { min: 0, minExclusive: true, max: 100_000 }),
     alertThreshold: num(item["alertThreshold"] ?? 0, V.threshold, {
@@ -555,7 +573,21 @@ const RULES: Record<string, Rule> = {
   },
   // produit + (facultatif) quantité entrée dans un frigo actif
   saveProduct: (s, [item, st]) => {
-    const p = product(s, obj(item));
+    let it = obj(item);
+    // nouveau produit dont le nom existe déjà : si ce produit n'a plus de stock, le nouveau stock lui est
+    // affecté (même produit, même référence) ; s'il a encore du stock, c'est un doublon → refusé
+    if (!it["id"]) {
+      const meme = memeNom(s, {
+        id: undefined,
+        name: String(it["name"] ?? ""),
+        nameAlt: String(it["nameAlt"] ?? ""),
+      });
+      if (meme) {
+        if (stockTotal(s, meme.id) > 0) fail(V.nameUsed);
+        it = { ...it, id: meme.id, active: true };
+      }
+    }
+    const p = product(s, it);
     if (st === null || st === undefined) return [p, null];
     const x = obj(st);
     if (

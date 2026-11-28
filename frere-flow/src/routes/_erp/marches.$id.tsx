@@ -351,7 +351,12 @@ function MarketSaleDialog({ trip, onClose }: { trip: MarketTrip; onClose: () => 
                   value={it.productId}
                   onChange={(e) => {
                     const p = state.products.find((x) => x.id === e.target.value);
-                    setItem(i, { productId: e.target.value, unitPrice: p?.salePrice ?? 0 });
+                    // quantité de départ : 1
+                    setItem(i, {
+                      productId: e.target.value,
+                      unitPrice: p?.salePrice ?? 0,
+                      quantity: it.quantity || 1,
+                    });
                   }}
                 >
                   <option value="">{translate("اختر المنتج…")}</option>

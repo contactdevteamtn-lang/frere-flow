@@ -8,7 +8,7 @@ const NOW = "2026-11-23T10:00:00.000Z";
 const TODAY = "2026-11-23";
 const nouveau = {
   reference: "",
-  name: "فلفل",
+  name: "فلفل حار",
   category: "خضروات",
   unit: "kg",
   salePrice: 2.5,
@@ -27,7 +27,7 @@ describe("saveProduct", () => {
     const s = buildSeed();
     const frigo = s.frigos.find((f) => f.active)!;
     const r = executer(s, nouveau, { frigoId: frigo.id, quantity: 350 });
-    const p = r.products.find((x) => x.name === "فلفل")!;
+    const p = r.products.find((x) => x.name === "فلفل حار")!;
     expect(p).toBeDefined();
     expect(p.reference).toMatch(/^PDT-\d{3}$/);
     expect(stockOf(r, p.id, frigo.id)).toBe(350);
@@ -47,7 +47,7 @@ describe("saveProduct", () => {
       { frigoId: "", quantity: "" },
     ]) {
       const r = executer(s, nouveau, stock);
-      expect(r.products.some((x) => x.name === "فلفل")).toBe(true);
+      expect(r.products.some((x) => x.name === "فلفل حار")).toBe(true);
       expect(r.stockMovements.length).toBe(avant);
     }
   });
@@ -69,12 +69,12 @@ describe("saveProduct", () => {
     );
     const attendu = `PDT-${String(max + 1).padStart(3, "0")}`;
     const r1 = executer(s, { ...nouveau, reference: "" }, null);
-    expect(r1.products.find((x) => x.name === "فلفل")!.reference).toBe(attendu);
+    expect(r1.products.find((x) => x.name === "فلفل حار")!.reference).toBe(attendu);
     // une référence envoyée (même en double ou fantaisiste) est ignorée
     const doublon = s.products[0]!.reference;
     for (const reference of [doublon, "MA-REF", "<script>"]) {
       const r = executer(s, { ...nouveau, reference }, null);
-      expect(r.products.find((x) => x.name === "فلفل")!.reference).toBe(attendu);
+      expect(r.products.find((x) => x.name === "فلفل حار")!.reference).toBe(attendu);
     }
     // deux créations successives : jamais la même référence
     const [p2] = validateOp(r1, "saveProduct", [{ ...nouveau, name: "ثوم" }, null], TODAY);
