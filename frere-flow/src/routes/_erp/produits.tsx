@@ -26,6 +26,7 @@ import { DataTable } from "@/components/app/DataTable";
 import { Confirm, Field, FormDialog, NativeSelect, NomAutreLangue } from "@/components/app/forms";
 import { PageHeader, Panel, Status } from "@/components/app/ui";
 import { dt, num } from "@/lib/format";
+import { FiltreFrigo, dansFrigo, frigoCredit, frigoVente } from "@/components/app/FiltreFrigo";
 
 export const Route = createFileRoute("/_erp/produits")({
   head: () => ({
@@ -79,6 +80,7 @@ function Produits() {
   };
   const [del, setDel] = useState<string | null>(null);
   const [lang, setLang] = useState<DisplayLang>(language);
+  const [frigo, setFrigo] = useState("all");
   const rows = state.products.map((p) => ({ ...p, total: stockTotal(state, p.id) }));
 
   return (
@@ -98,7 +100,12 @@ function Produits() {
       <Panel>
         <DataTable
           rows={rows}
-          filters={<DisplayLanguageFilter value={lang} onChange={setLang} />}
+          filters={
+            <>
+              <FiltreFrigo value={frigo} onChange={setFrigo} />
+              <DisplayLanguageFilter value={lang} onChange={setLang} />
+            </>
+          }
           search={(r) => `${r.reference} ${showIn(r.name, "both")} ${showIn(r.category, "both")}`}
           columns={[
             {
@@ -121,17 +128,19 @@ function Produits() {
               cell: (r) => `${dt(r.salePrice)} / ${r.unit}`,
               sort: (r) => r.salePrice,
             },
-            ...state.frigos.map((f) => ({
-              header: f.name,
-              cell: (r: (typeof rows)[number]) => {
-                const q = stockOf(state, r.id, f.id);
-                return (
-                  <span className={q < r.alertThreshold ? "font-semibold text-destructive" : ""}>
-                    {num(q)}
-                  </span>
-                );
-              },
-            })),
+            ...state.frigos
+              .filter((f) => dansFrigo(frigo, f.id))
+              .map((f) => ({
+                header: f.name,
+                cell: (r: (typeof rows)[number]) => {
+                  const q = stockOf(state, r.id, f.id);
+                  return (
+                    <span className={q < r.alertThreshold ? "font-semibold text-destructive" : ""}>
+                      {num(q)}
+                    </span>
+                  );
+                },
+              })),
             {
               header: translate("الإجمالي"),
               cell: (r) => (

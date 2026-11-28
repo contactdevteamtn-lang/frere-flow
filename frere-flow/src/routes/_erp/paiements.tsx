@@ -11,6 +11,7 @@ import { PageHeader, Panel } from "@/components/app/ui";
 import { METHODES, dateTimeFr, dt, methodeLabel } from "@/lib/format";
 import { PayCreditDialog } from "./credits";
 import type { Credit } from "@/types";
+import { FiltreFrigo, dansFrigo, frigoCredit, frigoVente } from "@/components/app/FiltreFrigo";
 
 export const Route = createFileRoute("/_erp/paiements")({
   head: () => ({
@@ -38,6 +39,7 @@ function Paiements() {
   const L = useLookups();
   const inScope = useTeamScope();
   const [method, setMethod] = useState("all");
+  const [frigo, setFrigo] = useState("all");
   const [pick, setPick] = useState(false);
   const [creditId, setCreditId] = useState("");
   const [credit, setCredit] = useState<Credit | null>(null);
@@ -100,21 +102,31 @@ function Paiements() {
       />
       <Panel>
         <DataTable
-          rows={rows}
+          rows={rows.filter((r) => {
+            // frigo du paiement : celui de la vente payée (ou de la vente du crédit remboursé)
+            const p = state.payments.find((x) => x.id === r.id);
+            if (p) return dansFrigo(frigo, frigoVente(state, p.saleId));
+            const cp = state.creditPayments.find((x) => x.id === r.id);
+            const c = cp && state.credits.find((x) => x.id === cp.creditId);
+            return dansFrigo(frigo, c ? frigoCredit(state, c) : undefined);
+          })}
           search={(p) => `${L.client.get(p.clientId)?.name} ${p.ref}`}
           filters={
-            <NativeSelect
-              className="sm:w-44"
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-            >
-              <option value="all">{<Text>{"كل طرق الدفع"}</Text>}</option>
-              {METHODES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {translate(m.label ?? "")}
-                </option>
-              ))}
-            </NativeSelect>
+            <>
+              <FiltreFrigo value={frigo} onChange={setFrigo} />
+              <NativeSelect
+                className="sm:w-44"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+              >
+                <option value="all">{<Text>{"كل طرق الدفع"}</Text>}</option>
+                {METHODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {translate(m.label ?? "")}
+                  </option>
+                ))}
+              </NativeSelect>
+            </>
           }
           columns={[
             { header: translate("التاريخ"), cell: (p) => dateTimeFr(p.date), sort: (p) => p.date },

@@ -1,6 +1,6 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Ban,
   CheckCircle2,
@@ -23,6 +23,7 @@ import { DataTable } from "@/components/app/DataTable";
 import { Edit, Field, FormDialog, NativeSelect } from "@/components/app/forms";
 import { Kpi, PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateFr, dt } from "@/lib/format";
+import { FiltreFrigo, dansFrigo, frigoCredit, frigoVente } from "@/components/app/FiltreFrigo";
 
 export const Route = createFileRoute("/_erp/factures")({
   head: () => ({
@@ -45,10 +46,12 @@ function Factures() {
   const L = useLookups();
   const inScope = useTeamScope();
   const [filtre, setFiltre] = useState<"all" | InvoiceStatus>("all");
+  const [frigo, setFrigo] = useState("all");
   const [motif, setMotif] = useState<Motif | null>(null);
   const [annuler, setAnnuler] = useState<Motif | null>(null);
   const [voir, setVoir] = useState<Invoice | null>(null);
-  const [modifier, setModifier] = useState<Invoice | null>(null);
+  const [modifier, setModifier] = useState<{ facture: Invoice; aVoir: boolean } | null>(null);
+  const [imprimer, setImprimer] = useState<Invoice | null>(null);
   // mode compressé : lignes denses, lecture rapide et impression compacte
   const [compact, setCompact] = useState(false);
   const gerer = can("ventes");
@@ -74,9 +77,6 @@ function Factures() {
             >
               <Minimize2 className="size-4" />
               {translate("عرض مضغوط")}
-            </Button>
-            <Button variant="outline" onClick={() => window.print()}>
-              <Printer className="size-4" /> {translate("طباعة")}
             </Button>
           </>
         }
@@ -109,22 +109,25 @@ function Factures() {
         }
       >
         <DataTable
-          rows={lignes}
+          rows={lignes.filter((f) => dansFrigo(frigo, frigoVente(state, f.saleId)))}
           search={(f) =>
             `${f.number} ${L.sale.get(f.saleId)?.number ?? ""} ${translate(L.client.get(f.clientId)?.name ?? "")}`
           }
           filters={
-            <NativeSelect
-              className="sm:w-44"
-              aria-label={translate("الحالة")}
-              value={filtre}
-              onChange={(e) => setFiltre(e.target.value as "all" | InvoiceStatus)}
-            >
-              <option value="all">{translate("كل الحالات")}</option>
-              <option value="VALIDEE">{translate("صالحة")}</option>
-              <option value="A_VOIR">{translate("للمراجعة")}</option>
-              <option value="ANNULEE">{translate("ملغاة")}</option>
-            </NativeSelect>
+            <>
+              <FiltreFrigo value={frigo} onChange={setFrigo} />
+              <NativeSelect
+                className="sm:w-44"
+                aria-label={translate("الحالة")}
+                value={filtre}
+                onChange={(e) => setFiltre(e.target.value as "all" | InvoiceStatus)}
+              >
+                <option value="all">{translate("كل الحالات")}</option>
+                <option value="VALIDEE">{translate("صالحة")}</option>
+                <option value="A_VOIR">{translate("للمراجعة")}</option>
+                <option value="ANNULEE">{translate("ملغاة")}</option>
+              </NativeSelect>
+            </>
           }
           columns={[
             {
@@ -167,6 +170,15 @@ function Factures() {
                   >
                     <Eye className="size-4" />
                   </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    title={translate("طباعة الفاتورة")}
+                    aria-label={translate("طباعة الفاتورة")}
+                    onClick={() => setImprimer(f)}
+                  >
+                    <Printer className="size-4" />
+                  </Button>
                   {gerer && f.status !== "ANNULEE" && !L.sale.get(f.saleId)?.marketTripId && (
                     <Edit>
                       <Button
@@ -174,7 +186,7 @@ function Factures() {
                         variant="ghost"
                         title={translate("تعديل الفاتورة")}
                         aria-label={translate("تعديل الفاتورة")}
-                        onClick={() => setModifier(f)}
+                        onClick={() => setModifier({ facture: f, aVoir: false })}
                       >
                         <Pencil className="size-4" />
                       </Button>
@@ -198,7 +210,7 @@ function Factures() {
                           variant="ghost"
                           title={translate("وضعها للمراجعة")}
                           aria-label={translate("وضعها للمراجعة")}
-                          onClick={() => setMotif({ facture: f, status: "A_VOIR", note: "" })}
+                          onClick={() => setModifier({ facture: f, aVoir: true })}
                         >
                           <MessageSquareWarning className="size-4 text-warning-foreground" />
                         </Button>
@@ -276,7 +288,14 @@ function Factures() {
       )}
 
       {voir && <FactureDetail facture={voir} onClose={() => setVoir(null)} />}
-      {modifier && <ModifierFacture facture={modifier} onClose={() => setModifier(null)} />}
+      {modifier && (
+        <ModifierFacture
+          facture={modifier.facture}
+          aVoir={modifier.aVoir}
+          onClose={() => setModifier(null)}
+        />
+      )}
+      {imprimer && <FactureImprimable facture={imprimer} onDone={() => setImprimer(null)} />}
     </div>
   );
 }
@@ -346,9 +365,18 @@ function FactureDetail({ facture, onClose }: { facture: Invoice; onClose: () => 
 }
 
 /** Modification complète : lignes, quantités, prix — stock, crédit, remboursement recalculés par le serveur */
-function ModifierFacture({ facture, onClose }: { facture: Invoice; onClose: () => void }) {
+function ModifierFacture({
+  facture,
+  aVoir = false,
+  onClose,
+}: {
+  facture: Invoice;
+  aVoir?: boolean;
+  onClose: () => void;
+}) {
   useLanguage();
   const { state, run } = useApp();
+  const [note, setNote] = useState(facture.notes ?? "");
   const vente = state.sales.find((x) => x.id === facture.saleId);
   const [lignes, setLignes] = useState(
     state.saleItems
@@ -461,6 +489,31 @@ function ModifierFacture({ facture, onClose }: { facture: Invoice; onClose: () =
         >
           <Plus className="size-4" /> {translate("إضافة منتج")}
         </Button>
+        {aVoir && (
+          <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
+            <Field label={translate("ما الذي يجب مراجعته أو تعديله؟")}>
+              <Input
+                maxLength={200}
+                placeholder={translate("مثال: خطأ في سعر المنتج")}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                "عدّل الفاتورة ثم احفظ (تصبح صالحة)، أو اتركها للمراجعة مع الملاحظة دون تعديل.",
+              )}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => run(setInvoiceStatus, facture.id, "A_VOIR", note) && onClose()}
+            >
+              <MessageSquareWarning className="size-4" /> {translate("إبقاؤها للمراجعة دون تعديل")}
+            </Button>
+          </div>
+        )}
         <div className="space-y-1 rounded-lg border p-3 text-sm">
           <div className="flex justify-between">
             <span>{translate("الإجمالي السابق")}</span>
@@ -490,3 +543,89 @@ function ModifierFacture({ facture, onClose }: { facture: Invoice; onClose: () =
     </FormDialog>
   );
 }
+
+/** Impression d'une seule facture : seule cette zone est visible à l'impression (voir styles.css) */
+function FactureImprimable({ facture, onDone }: { facture: Invoice; onDone: () => void }) {
+  useLanguage();
+  const { state } = useApp();
+  const L = useLookups();
+  const vente = L.sale.get(facture.saleId);
+  const client = L.client.get(facture.clientId);
+  const items = state.saleItems.filter((i) => i.saleId === facture.saleId);
+  useEffect(() => {
+    document.body.classList.add("impression-facture");
+    const fin = () => {
+      document.body.classList.remove("impression-facture");
+      onDone();
+    };
+    window.addEventListener("afterprint", fin, { once: true });
+    const t = setTimeout(() => window.print(), 50);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", fin);
+      document.body.classList.remove("impression-facture");
+    };
+  }, [onDone]);
+  return (
+    <div className="zone-impression text-sm text-black">
+      <div className="mb-4 flex items-start justify-between border-b pb-3">
+        <div>
+          <p className="text-lg font-bold">{translate(state.settings.companyName)}</p>
+          <p>{translate(state.frigos.find((x) => x.id === vente?.frigoId)?.name ?? "")}</p>
+        </div>
+        <div className="text-end">
+          <p className="text-lg font-bold">
+            {translate("الفاتورة")} {facture.number}
+          </p>
+          <p>{dateFr(facture.date)}</p>
+          <p>{translate(STATUT[facture.status])}</p>
+        </div>
+      </div>
+      <p className="mb-3">
+        <b>{translate("العميل")} :</b> {translate(client?.name ?? "")} {client?.phone ?? ""}
+      </p>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b">
+            <th className="p-1 text-start">{translate("المنتج")}</th>
+            <th className="p-1 text-end">{translate("الكمية")}</th>
+            <th className="p-1 text-end">{translate("سعر الوحدة")}</th>
+            <th className="p-1 text-end">{translate("المجموع")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((i) => (
+            <tr key={i.id} className="border-b">
+              <td className="p-1">{translate(L.product.get(i.productId)?.name ?? "")}</td>
+              <td className="p-1 text-end">
+                {i.quantity} {translate(L.product.get(i.productId)?.unit ?? "")}
+              </td>
+              <td className="p-1 text-end">{dt(i.unitPrice)}</td>
+              <td className="p-1 text-end">{dt(i.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="ms-auto mt-3 w-64 space-y-1">
+        <div className="flex justify-between font-bold">
+          <span>{translate("الإجمالي")}</span>
+          <span>{dt(facture.amount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>{translate("المدفوع")}</span>
+          <span>{dt(vente?.paidAmount ?? 0)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>{translate("المتبقي")}</span>
+          <span>{dt(vente?.remainingAmount ?? 0)}</span>
+        </div>
+      </div>
+      {facture.notes && <p className="mt-4 text-xs">{facture.notes}</p>}
+    </div>
+  );
+}
+const STATUT: Record<InvoiceStatus, string> = {
+  VALIDEE: "صالحة",
+  A_VOIR: "للمراجعة",
+  ANNULEE: "ملغاة",
+};

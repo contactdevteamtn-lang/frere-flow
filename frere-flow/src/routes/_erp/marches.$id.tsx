@@ -33,6 +33,7 @@ import { Confirm, Edit, Field, FormDialog, NativeSelect } from "@/components/app
 import { Empty, Kpi, Panel, Status, thCls } from "@/components/app/ui";
 import { METHODES, dateFr, dateTimeFr, dt, methodeLabel, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { CalendrierMarche } from "@/components/markets/CalendrierMarche";
 
 export const Route = createFileRoute("/_erp/marches/$id")({
   head: () => ({
@@ -272,6 +273,9 @@ function TripPage() {
       </Panel>
 
       <BilanJour trip={trip} />
+
+      {/* calendrier des crédits des clients de CE marché */}
+      <CalendrierMarche marketId={trip.marketId} />
 
       <Panel title={<SectionTitle n={3} icon={ClipboardCheck} title="حصيلة آخر اليوم / الإغلاق" />}>
         {open ? <ClosingForm trip={trip} /> : <ClosingSummary trip={trip} />}

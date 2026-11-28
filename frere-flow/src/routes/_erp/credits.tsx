@@ -20,6 +20,7 @@ import { Field, FormDialog, NativeSelect, Edit } from "@/components/app/forms";
 import { Kpi, PageHeader, Panel, Status } from "@/components/app/ui";
 import { METHODES, dateFr, dateTimeFr, dt, methodeLabel } from "@/lib/format";
 import { CreditCard, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { FiltreFrigo, dansFrigo, frigoCredit, frigoVente } from "@/components/app/FiltreFrigo";
 
 export const Route = createFileRoute("/_erp/credits")({
   head: () => ({
@@ -105,6 +106,7 @@ function Credits() {
   const [hist, setHist] = useState<Credit | null>(null);
   const [add, setAdd] = useState(false);
   const [st, setSt] = useState("open");
+  const [frigo, setFrigo] = useState("all");
   const [nc, setNc] = useState({
     clientId: "",
     teamId: teamFilter === "all" ? state.teams[0].id : teamFilter,
@@ -163,20 +165,23 @@ function Credits() {
       </div>
       <Panel>
         <DataTable
-          rows={rows}
+          rows={rows.filter((c) => dansFrigo(frigo, frigoCredit(state, c)))}
           search={(c) =>
             `${L.client.get(c.clientId)?.name} ${c.saleId ? L.sale.get(c.saleId)?.number : ""}`
           }
           filters={
-            <NativeSelect className="sm:w-52" value={st} onChange={(e) => setSt(e.target.value)}>
-              <option value="open">{<Text>{"الديون المفتوحة"}</Text>}</option>
-              <option value="all">{<Text>{"الكل"}</Text>}</option>
-              {state.creditStatuses.map((s) => (
-                <option key={s.id} value={s.code}>
-                  {translate(s.label ?? "")}
-                </option>
-              ))}
-            </NativeSelect>
+            <>
+              <FiltreFrigo value={frigo} onChange={setFrigo} />
+              <NativeSelect className="sm:w-52" value={st} onChange={(e) => setSt(e.target.value)}>
+                <option value="open">{<Text>{"الديون المفتوحة"}</Text>}</option>
+                <option value="all">{<Text>{"الكل"}</Text>}</option>
+                {state.creditStatuses.map((s) => (
+                  <option key={s.id} value={s.code}>
+                    {translate(s.label ?? "")}
+                  </option>
+                ))}
+              </NativeSelect>
+            </>
           }
           columns={[
             {

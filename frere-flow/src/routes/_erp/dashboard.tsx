@@ -1,6 +1,6 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { useApp, useLookups, useTeamScope } from "@/store/store";
 import { buildDashboardData } from "@/services/dashboard";
+import { stockOf } from "@/services/ops";
+import { FiltreFrigo, frigoCredit } from "@/components/app/FiltreFrigo";
 import { Kpi, PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateFr, dt, num } from "@/lib/format";
 
@@ -61,12 +63,46 @@ function Dashboard() {
   const { state, teamFilter } = useApp();
   const L = useLookups();
   const inScope = useTeamScope();
-  const today = new Date().toISOString();
+  // date fixée à l'ouverture de la page (sinon tout était recalculé à chaque affichage)
+  const today = useMemo(() => new Date().toISOString(), []);
+  const [frigo, setFrigo] = useState("all");
+  // filtre frigo : ventes, paiements et crédits de ce frigo ; stock de ce frigo seulement
+  const etat = useMemo(() => {
+    if (frigo === "all") return state;
+    const ventes = new Set(state.sales.filter((v) => v.frigoId === frigo).map((v) => v.id));
+    const credits = state.credits.filter((c) => frigoCredit(state, c) === frigo);
+    const ids = new Set(credits.map((c) => c.id));
+    return {
+      ...state,
+      frigos: state.frigos.filter((x) => x.id === frigo),
+      sales: state.sales.filter((v) => ventes.has(v.id)),
+      saleItems: state.saleItems.filter((i) => ventes.has(i.saleId)),
+      payments: state.payments.filter((p) => ventes.has(p.saleId)),
+      credits,
+      creditPayments: state.creditPayments.filter((p) => ids.has(p.creditId)),
+    };
+  }, [state, frigo]);
   // recalculé aussi au changement de langue (mois, noms d'équipes / frigos / caisses des graphiques)
   const d = useMemo(
-    () => buildDashboardData(state, teamFilter, inScope, today),
-    [state, inScope, teamFilter, today, language], // eslint-disable-line react-hooks/exhaustive-deps
+    () => buildDashboardData(etat, teamFilter, inScope, today),
+    [etat, inScope, teamFilter, today, language], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // stock : un groupe de barres par produit, une barre par frigo (tous les produits actifs)
+  const stockParProduit = useMemo(
+    () =>
+      etat.products
+        .filter((p) => p.active)
+        .map((p) => ({
+          name: translate(p.name),
+          ...Object.fromEntries(etat.frigos.map((x) => [x.id, stockOf(etat, p.id, x.id)])),
+        })),
+    [etat, language], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const montant = (v: unknown) => dt(Number(v));
+  const kg = (v: unknown) => `${num(Number(v))} kg`;
+  const court = (v: number) => (Math.abs(v) >= 1000 ? `${num(v / 1000, 1)}k` : num(v));
+  const pourcent = ({ percent }: { percent?: number }) =>
+    percent && percent > 0.04 ? `${Math.round(percent * 100)}%` : "";
   const nom = (n?: string) => translate(n ?? "");
   // ── résumés explicatifs des graphiques (toujours calculés sur les données réelles) ──
   const moisCourant = d.monthly[d.monthly.length - 1];
@@ -93,6 +129,7 @@ function Dashboard() {
       <PageHeader
         title={translate("لوحة المتابعة")}
         subtitle={`${translate("نظرة عامة")} — ${scopeLabel}`}
+        actions={<FiltreFrigo value={frigo} onChange={setFrigo} />}
       />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi
@@ -159,8 +196,13 @@ function Dashboard() {
               <AreaChart data={d.monthly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="mois" fontSize={12} stroke="var(--muted-foreground)" />
-                <YAxis fontSize={12} stroke="var(--muted-foreground)" />
-                <Tooltip formatter={(v) => dt(Number(v))} />
+                <YAxis
+                  fontSize={12}
+                  stroke="var(--muted-foreground)"
+                  tickFormatter={court}
+                  width={48}
+                />
+                <Tooltip formatter={montant} />
                 <Legend />
                 <Area
                   type="monotone"
@@ -214,6 +256,8 @@ function Dashboard() {
                   innerRadius={55}
                   outerRadius={90}
                   paddingAngle={3}
+                  label={pourcent}
+                  labelLine={false}
                 >
                   {d.byTeam.map((_, i) => (
                     <Cell key={i} fill={C[i]} />
@@ -239,18 +283,23 @@ function Dashboard() {
           </p>
           <div className="h-72">
             <ResponsiveContainer>
-              <BarChart data={d.stockByFrigo}>
+              <BarChart data={stockParProduit}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" fontSize={12} stroke="var(--muted-foreground)" />
-                <YAxis fontSize={12} stroke="var(--muted-foreground)" />
-                <Tooltip />
+                <XAxis dataKey="name" fontSize={11} stroke="var(--muted-foreground)" interval={0} />
+                <YAxis
+                  fontSize={12}
+                  stroke="var(--muted-foreground)"
+                  tickFormatter={court}
+                  width={48}
+                />
+                <Tooltip formatter={kg} />
                 <Legend />
-                {state.products.slice(0, 5).map((p, i) => (
+                {etat.frigos.map((x, i) => (
                   <Bar
-                    key={p.id}
-                    dataKey={p.id}
-                    name={nom(p.name)}
-                    fill={C[i]}
+                    key={x.id}
+                    dataKey={x.id}
+                    name={nom(x.name)}
+                    fill={C[i % C.length]}
                     radius={[4, 4, 0, 0]}
                   />
                 ))}
@@ -265,12 +314,19 @@ function Dashboard() {
           <div className="h-72">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={d.packDist} dataKey="value" nameKey="name" outerRadius={90}>
+                <Pie
+                  data={d.packDist}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={90}
+                  label={pourcent}
+                  labelLine={false}
+                >
                   {d.packDist.map((p) => (
                     <Cell key={translate(p.name ?? "")} fill={p.hex} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(v) => `${num(Number(v))} ${translate("صندوق")}`} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

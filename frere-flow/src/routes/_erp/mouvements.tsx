@@ -16,6 +16,7 @@ import { DataTable } from "@/components/app/DataTable";
 import { Field, FormDialog, NativeSelect, Edit } from "@/components/app/forms";
 import { PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateTimeFr, num } from "@/lib/format";
+import { FiltreFrigo, dansFrigo, frigoCredit, frigoVente } from "@/components/app/FiltreFrigo";
 
 export const Route = createFileRoute("/_erp/mouvements")({
   head: () => ({
@@ -182,6 +183,7 @@ function Mouvements() {
   const { state } = useApp();
   const L = useLookups();
   const [type, setType] = useState("all");
+  const [frigo, setFrigo] = useState("all");
   const [lang, setLang] = useState<DisplayLang>(language);
   const rows = state.stockMovements.filter((m) => type === "all" || m.movementType === type);
   return (
@@ -193,23 +195,26 @@ function Mouvements() {
       />
       <Panel>
         <DataTable
-          rows={rows}
+          rows={rows.filter((m) => frigo === "all" || m.frigoId === frigo || m.toFrigoId === frigo)}
           search={(m) => `${showIn(L.product.get(m.productId)?.name ?? "", "both")} ${m.reference}`}
           filters={
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <NativeSelect
-                className="sm:w-44"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="all">{<Text>{"كل الأنواع"}</Text>}</option>
-                <option value="ENTREE">{<Text>{"الوارد"}</Text>}</option>
-                <option value="SORTIE">{<Text>{"الصادر"}</Text>}</option>
-                <option value="TRANSFERT">{<Text>{"عمليات النقل"}</Text>}</option>
-                <option value="AJUSTEMENT">{<Text>{"التسويات"}</Text>}</option>
-              </NativeSelect>
-              <DisplayLanguageFilter value={lang} onChange={setLang} />
-            </div>
+            <>
+              <FiltreFrigo value={frigo} onChange={setFrigo} />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <NativeSelect
+                  className="sm:w-44"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                >
+                  <option value="all">{<Text>{"كل الأنواع"}</Text>}</option>
+                  <option value="ENTREE">{<Text>{"الوارد"}</Text>}</option>
+                  <option value="SORTIE">{<Text>{"الصادر"}</Text>}</option>
+                  <option value="TRANSFERT">{<Text>{"عمليات النقل"}</Text>}</option>
+                  <option value="AJUSTEMENT">{<Text>{"التسويات"}</Text>}</option>
+                </NativeSelect>
+                <DisplayLanguageFilter value={lang} onChange={setLang} />
+              </div>
+            </>
           }
           columns={[
             { header: translate("التاريخ"), cell: (m) => dateTimeFr(m.date), sort: (m) => m.date },

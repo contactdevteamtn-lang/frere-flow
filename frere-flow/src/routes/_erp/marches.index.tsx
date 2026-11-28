@@ -24,10 +24,8 @@ import { Edit, Field, FormDialog, NativeSelect } from "@/components/app/forms";
 import { Kpi, PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateFr, dt, num } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { DeadlineCalendar } from "@/components/deadlines/DeadlineCalendar";
+import { CalendrierMarche } from "@/components/markets/CalendrierMarche";
 import { CalendarDays } from "lucide-react";
-import { deadlineStatus } from "@/services/deadlines";
-import { isMarketCredit } from "@/services/ops";
 import { MarketAnalytics } from "@/components/markets/MarketAnalytics";
 import { MarketConfiguration } from "@/components/markets/MarketConfiguration";
 import { MarketCredits } from "@/components/markets/MarketCredits";
@@ -486,52 +484,5 @@ function NewTrip({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: s
         </div>
       </div>
     </FormDialog>
-  );
-}
-
-/** Calendrier des clients du marché : échéances de leurs dettes (passages, relances) par date */
-function CalendrierMarche() {
-  useLanguage();
-  const { state, readOnly } = useApp();
-  const inScope = useTeamScope();
-  const [anchor, setAnchor] = useState(() => new Date());
-  const [semaine, setSemaine] = useState(false);
-  const rows = state.credits
-    .filter((c) => inScope(c.teamId) && isMarketCredit(state, c))
-    // consultation seule : les échéances déjà traitées (payées, annulées, relance cochée) ne sont pas affichées
-    .filter(
-      (c) =>
-        !readOnly ||
-        !(
-          ["PAID", "CANCELLED"].includes(deadlineStatus(state, c, new Date().toISOString())) ||
-          c.reminderHistory?.some((r) => r.dueDate === c.dueDate)
-        ),
-    )
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  return (
-    <Panel
-      title={translate("تقويم عملاء السوق")}
-      action={
-        <NativeSelect
-          className="sm:w-40"
-          value={semaine ? "week" : "month"}
-          onChange={(e) => setSemaine(e.target.value === "week")}
-        >
-          <option value="month">{translate("شهر")}</option>
-          <option value="week">{translate("أسبوع")}</option>
-        </NativeSelect>
-      }
-    >
-      <p className="mb-3 text-xs text-muted-foreground">
-        {translate("مواعيد ديون عملاء الأسواق حسب التاريخ: للتخطيط للمرور والتذكير.")}
-      </p>
-      <DeadlineCalendar
-        rows={rows}
-        anchor={anchor}
-        onAnchor={setAnchor}
-        week={semaine}
-        onSelect={() => {}}
-      />
-    </Panel>
   );
 }

@@ -146,3 +146,24 @@
 @utility bg-hero {
   background-image: var(--gradient-hero);
 }
+
+/* Impression d'une seule facture (page Factures) : tout le reste de l'écran est masqué */
+.zone-impression {
+  display: none;
+}
+@media print {
+  body.impression-facture * {
+    visibility: hidden;
+  }
+  body.impression-facture .zone-impression,
+  body.impression-facture .zone-impression * {
+    visibility: visible;
+  }
+  body.impression-facture .zone-impression {
+    display: block;
+    position: absolute;
+    inset: 0;
+    padding: 1.2cm;
+    background: white;
+  }
+}

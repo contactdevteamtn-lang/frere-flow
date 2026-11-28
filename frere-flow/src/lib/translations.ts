@@ -370,6 +370,12 @@ export const translations: Record<string, string> = {
   العربية: "Arabe",
   // ── Factures ──
   الفواتير: "Factures",
+  "طباعة الفاتورة": "Imprimer la facture",
+  "إبقاؤها للمراجعة دون تعديل": "Garder « à voir » sans modifier",
+  "عدّل الفاتورة ثم احفظ (تصبح صالحة)، أو اتركها للمراجعة مع الملاحظة دون تعديل.":
+    "Modifiez la facture puis enregistrez (elle redevient validée), ou laissez-la « à voir » avec la remarque, sans modification.",
+  "تقويم ديون السوق": "Calendrier des crédits du marché",
+  العرض: "Affichage",
   // ── Tableau de bord : résumés et alertes ──
   "ديون جديدة": "nouveaux crédits",
   "مقارنة بالشهر السابق": "par rapport au mois précédent",
