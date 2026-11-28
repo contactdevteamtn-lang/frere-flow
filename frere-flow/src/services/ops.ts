@@ -13,6 +13,16 @@ import type {
 export class BusinessError extends Error {}
 
 export const nextId = (s: AppState, p: string) => `${p}_${(++s.seq).toString(36)}`;
+
+/** Référence automatique suivante : PREFIXE-AAAA-0001 (la plus grande existante + 1, jamais en double) */
+export function prochaineReference(existantes: string[], prefixe: string, date: string) {
+  const debut = `${prefixe}-${date.slice(0, 4)}-`;
+  const n = existantes
+    .filter((r) => r?.startsWith(debut))
+    .map((r) => Number(r.slice(debut.length)))
+    .filter(Number.isFinite);
+  return `${debut}${String(Math.max(0, ...n) + 1).padStart(4, "0")}`;
+}
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 export const saleStatusId = (s: AppState, code: string) =>
@@ -146,7 +156,11 @@ export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: str
   const paid = round(Math.min(Math.max(inp.paid || 0, 0), total));
   const remaining = round(total - paid);
   const id = nextId(s, "sale");
-  const number = `FM-${date.slice(0, 4)}-${String(s.sales.length + 1).padStart(4, "0")}`;
+  const number = prochaineReference(
+    s.sales.map((x) => x.number),
+    "FM",
+    date,
+  );
   const statusCode = remaining === 0 ? "PAID" : paid > 0 ? "PARTIAL" : "PENDING";
   s.sales.unshift({
     id,
@@ -655,7 +669,15 @@ export function addStockMovement(
         : 0;
   if (out > av) throw new BusinessError(`مخزون غير كافٍ (${av} متوفرة)`);
   const id = nextId(s, "mv");
-  s.stockMovements.unshift({ id, ...inp, date, userId });
+  // référence automatique (MVT-AAAA-0001) sauf mouvement créé par une autre opération (vente, produit…)
+  const reference =
+    inp.reference ||
+    prochaineReference(
+      s.stockMovements.map((m) => m.reference),
+      "MVT",
+      date,
+    );
+  s.stockMovements.unshift({ id, ...inp, reference, date, userId });
   const p = s.products.find((x) => x.id === inp.productId)?.name;
   audit(
     s,
@@ -778,7 +800,13 @@ export function addCash(
       throw new BusinessError(`رصيد الصندوق غير كافٍ (${solde} TND متوفرة)`);
   }
   const id = nextId(s, "cash");
-  s.cash.unshift({ id, ...inp, userId, date });
+  // référence automatique (CAI-AAAA-0001)
+  const reference = prochaineReference(
+    s.cash.map((c) => c.reference),
+    "CAI",
+    date,
+  );
+  s.cash.unshift({ id, ...inp, reference, userId, date });
   audit(
     s,
     userId,

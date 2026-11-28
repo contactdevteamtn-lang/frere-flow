@@ -111,7 +111,20 @@ function Caisse() {
       <Panel title={translate("حركات الصندوق المالي")}>
         <DataTable
           rows={rows}
-          search={(c) => `${c.reference} ${translate(c.description ?? "")}`}
+          // recherche par opération : type (قبض / صرف), libellé, référence, mode de paiement, montant, Figo, date — en arabe et en français
+          search={(c) =>
+            [
+              c.reference,
+              c.description,
+              c.type === "ENCAISSEMENT" ? "قبض" : "صرف",
+              c.method,
+              String(c.amount),
+              c.date.slice(0, 10),
+              state.teams.find((t) => t.id === c.teamId)?.name ?? "",
+            ]
+              .flatMap((x) => [translate(x ?? "", "ar"), translate(x ?? "", "fr")])
+              .join(" ")
+          }
           filters={
             <>
               <Input
@@ -226,12 +239,13 @@ function Caisse() {
             </Field>
             <Field label={translate("المرجع")}>
               <Input
-                maxLength={30}
+                readOnly
+                disabled
                 dir="ltr"
-                placeholder={translate("مثال: CH-004512")}
-                value={f.reference}
-                onChange={(e) => setF({ ...f, reference: e.target.value })}
+                className="font-mono"
+                value={`CAI-${new Date().getFullYear()}-…`}
               />
+              <p className="text-xs text-muted-foreground">{translate("تلقائي")}</p>
             </Field>
             <Field label={translate("الوصف")}>
               <Input

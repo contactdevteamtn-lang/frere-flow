@@ -154,12 +154,13 @@ export function StockMoveButton() {
             </Field>
             <Field label={translate("المرجع")}>
               <Input
-                value={f.reference}
-                onChange={(e) => setF({ ...f, reference: e.target.value })}
-                maxLength={30}
+                readOnly
+                disabled
                 dir="ltr"
-                placeholder={translate("مثال: BR-2026-001")}
+                className="font-mono"
+                value={`MVT-${new Date().getFullYear()}-…`}
               />
+              <p className="text-xs text-muted-foreground">{translate("تلقائي")}</p>
             </Field>
             <Field label={translate("ملاحظات")} className="sm:col-span-2">
               <Input

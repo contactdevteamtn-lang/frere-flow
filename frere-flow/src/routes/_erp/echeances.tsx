@@ -83,8 +83,13 @@ function Deadlines() {
         .join(" / ") || t("يدوي")
     );
   };
+  // compte en consultation seule : les échéances déjà traitées (payées, annulées ou relance cochée) sont masquées
+  const coche = (c: (typeof state.credits)[number]) =>
+    ["PAID", "CANCELLED"].includes(deadlineStatus(state, c, new Date().toISOString())) ||
+    !!c.reminderHistory?.some((r) => r.dueDate === c.dueDate);
   const all = state.credits
     .filter((c) => inScope(c.teamId) && (can("marches") || !isMarketCredit(state, c)))
+    .filter((c) => !readOnly || !coche(c))
     .filter((c) => {
       const src = deadlineSource(state, c);
       const cl = L.client.get(c.clientId);

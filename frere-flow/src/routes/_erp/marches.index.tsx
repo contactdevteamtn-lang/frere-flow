@@ -50,20 +50,23 @@ export const Route = createFileRoute("/_erp/marches/")({
 
 function Marches() {
   useLanguage();
-  const { state, teamFilter } = useApp();
+  const { state, teamFilter, can } = useApp();
   const L = useLookups();
   const inScope = useTeamScope();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState("all");
   const [market, setMarket] = useState("all");
+  // vue par frigo : Frigo Fawzi seul, Frigo Houssem seul, ou tous ensemble
+  const [frigo, setFrigo] = useState("all");
 
   const rows = state.marketTrips
     .filter(
       (t) =>
         inScope(t.teamId) &&
         (status === "all" || t.status === status) &&
-        (market === "all" || t.marketId === market),
+        (market === "all" || t.marketId === market) &&
+        (frigo === "all" || t.loads.some((l) => l.frigoId === frigo)),
     )
     .map((t) => ({ ...t, totals: tripTotals(state, t) }));
   const open = rows.filter((r) => r.status === "OPEN").length;
@@ -103,17 +106,20 @@ function Marches() {
           <MarketConfiguration />
         </TabsContent>
         <TabsContent value="sessions">
-          <Edit>
-            <div className="mb-4 flex justify-end">
-              <Button
-                disabled={!state.teams.length || !state.frigos.some((f) => f.active)}
-                onClick={() => setCreating(true)}
-              >
-                <Plus className="size-4" />
-                <Text>{"إرسالية سوق جديدة"}</Text>
-              </Button>
-            </div>
-          </Edit>
+          {/* créer une expédition (chargement du camion) : direction et admin seulement */}
+          {can("administration") && (
+            <Edit>
+              <div className="mb-4 flex justify-end">
+                <Button
+                  disabled={!state.teams.length || !state.frigos.some((f) => f.active)}
+                  onClick={() => setCreating(true)}
+                >
+                  <Plus className="size-4" />
+                  <Text>{"إرسالية سوق جديدة"}</Text>
+                </Button>
+              </div>
+            </Edit>
+          )}
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label="أسواق جارية" value={num(open)} icon={Truck} tone="warning" />
             <Kpi label="البضاعة المرسلة" value={`${num(sent)} kg`} icon={PackageCheck} />
@@ -145,6 +151,19 @@ function Marches() {
                     {state.markets.map((m) => (
                       <option key={m.id} value={m.id}>
                         {translate(m.name)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <NativeSelect
+                    className="sm:w-44"
+                    aria-label={translate("غرفة التبريد")}
+                    value={frigo}
+                    onChange={(e) => setFrigo(e.target.value)}
+                  >
+                    <option value="all">{translate("كل غرف التبريد")}</option>
+                    {state.frigos.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {translate(x.name)}
                       </option>
                     ))}
                   </NativeSelect>

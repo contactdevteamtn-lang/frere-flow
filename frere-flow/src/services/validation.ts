@@ -517,7 +517,7 @@ const RULES: Record<string, Rule> = {
           : {}),
         quantity,
         movementType: type,
-        reference: reference(x["reference"]),
+        reference: "", // attribuée automatiquement par l'opération
         notes: notes(x["notes"]),
       },
     ];
@@ -543,7 +543,7 @@ const RULES: Record<string, Rule> = {
         type: oneOf(x["type"], ["ENCAISSEMENT", "DECAISSEMENT"] as const),
         method: method(x["method"]),
         amount: amount(x["amount"]),
-        reference: reference(x["reference"]),
+        reference: "", // attribuée automatiquement par l'opération
         description: text(x["description"], { min: 3, max: 200, msg: V.description }),
       },
     ];

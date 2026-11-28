@@ -380,3 +380,37 @@ describe("factures", () => {
     expect(ops.creerFacturesManquantes(ancienne)).toBe(0); // rien en double au redémarrage suivant
   });
 });
+
+describe("références automatiques", () => {
+  it("caisse et mouvements de stock : référence générée, unique, saisie ignorée", () => {
+    let s = base;
+    const refs: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      s = exec(s, "addCash", {
+        teamId: team.id,
+        type: "ENCAISSEMENT",
+        method: "ESPECES",
+        amount: 5,
+        reference: "SAISIE-MAIN",
+        description: "test référence",
+      });
+      refs.push(s.cash[0]!.reference);
+    }
+    expect(refs.every((r) => /^CAI-\d{4}-\d{4}$/.test(r))).toBe(true);
+    expect(new Set(refs).size).toBe(3);
+    s = exec(s, "addStockMovement", {
+      productId: p.id,
+      frigoId: frigo.id,
+      quantity: 5,
+      movementType: "ENTREE",
+      reference: "BR-MAIN",
+      notes: "",
+    });
+    expect(s.stockMovements[0]!.reference).toMatch(/^MVT-\d{4}-\d{4}$/);
+  });
+  it("numéros de vente : suivants et uniques", () => {
+    const s = vente(vente(base, 0), 0);
+    const nums = s.sales.map((x) => x.number);
+    expect(new Set(nums).size).toBe(nums.length);
+  });
+});

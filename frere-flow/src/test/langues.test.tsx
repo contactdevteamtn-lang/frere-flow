@@ -70,7 +70,10 @@ function horsLangue(racine: HTMLElement, langue: "fr" | "ar"): string[] {
   const mauvais = (t: string) =>
     langue === "fr"
       ? AR.test(t) && t !== "العربية" // bouton « العربية » : chaque langue est écrite dans sa propre écriture
-      : LATIN.test(t.replace(/\S+@\S+|\b[A-Z]{2,4}-[\d-]+\b|\bFrançais\b|\bExcel\b|\bPDF\b/g, ""));
+      : // codes (PDT-001, FAWZI…), emails, noms de langue et de format ne se traduisent pas
+        LATIN.test(
+          t.replace(/\S+@\S+|\b[A-Z][A-Z0-9-]{1,14}\b|\bFrançais\b|\bExcel\b|\bPDF\b/g, ""),
+        );
   const out = new Set<string>();
   const w = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT);
   let n: Node | null;

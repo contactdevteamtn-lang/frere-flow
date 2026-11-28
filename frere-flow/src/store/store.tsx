@@ -468,7 +468,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     roleName,
     teamFilter,
     setTeamFilter,
-    can: (p) => perms.has(p),
+    // consultation seule : jamais d'historique (journal d'activité)
+    can: (p) => perms.has(p) && !(p === "historique" && ops.isReadOnly(state, me)),
     readOnly: ops.isReadOnly(state, me),
     run: (op, ...args) => {
       if (ops.isReadOnly(state, me)) {

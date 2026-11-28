@@ -1,6 +1,8 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Search } from "lucide-react";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
 import { useApp } from "@/store/store";
 import { packBalance, clientBoxBalance } from "@/services/ops";
 import { PageHeader, Panel, Swatch } from "@/components/app/ui";
@@ -30,6 +32,17 @@ function Soldes() {
   const { state, teamFilter } = useApp();
   const teams = state.teams.filter((t) => teamFilter === "all" || t.id === teamFilter);
   const types = state.packagingTypes.filter((t) => !t.clientOwned);
+  // recherche par client (nom en arabe ou en français, code, téléphone)
+  const [q, setQ] = useState("");
+  const cherche = q.trim().toLowerCase();
+  const clients = state.clients.filter(
+    (c) =>
+      !cherche ||
+      [translate(c.name, "ar"), translate(c.name, "fr"), c.code, c.phone]
+        .join(" ")
+        .toLowerCase()
+        .includes(cherche),
+  );
   return (
     <div>
       <PageHeader
@@ -37,6 +50,16 @@ function Soldes() {
         subtitle={translate("الرصيد حسب العميل والنوع وفريق فيغو، دون دمج")}
       />
       <Panel>
+        <div className="relative mb-3 sm:w-72">
+          <Search className="absolute start-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Input
+            className="ps-8"
+            placeholder={translate("بحث عن عميل…")}
+            aria-label={translate("بحث عن عميل…")}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
@@ -56,7 +79,7 @@ function Soldes() {
               </tr>
             </thead>
             <tbody>
-              {state.clients.flatMap((c) =>
+              {clients.flatMap((c) =>
                 teams.map((t) => {
                   const tot = packBalance(state, { clientId: c.id, teamId: t.id });
                   const own = clientBoxBalance(state, { clientId: c.id, teamId: t.id });

@@ -117,11 +117,18 @@ function Clients() {
             },
             {
               header: translate("رصيد الدين"),
-              cell: (r) => (
-                <span className={r.credit > 0 ? "font-semibold text-destructive" : ""}>
-                  {dt(r.credit)}
-                </span>
-              ),
+              // solde lisible : rouge = dû par le client, vert = soldé
+              cell: (r) =>
+                r.credit > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-0.5 text-sm font-bold text-destructive">
+                    {dt(r.credit)}
+                    <span className="text-xs font-medium">{translate("مستحق")}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-primary-dark">
+                    {translate("مسدد")} · {dt(0)}
+                  </span>
+                ),
               sort: (r) => r.credit,
             },
             { header: translate("الصناديق"), cell: (r) => num(r.pack), sort: (r) => r.pack },
