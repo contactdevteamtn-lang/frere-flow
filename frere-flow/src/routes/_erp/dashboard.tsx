@@ -119,7 +119,34 @@ function Dashboard() {
         actions={<FiltreFrigo value={frigo} onChange={setFrigo} />}
       />
 
-      {/* graphiques en haut */}
+      {/* chiffres essentiels en haut : ventes, paiements, solde de la caisse, crédits */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi
+          label={translate("مبيعات الشهر")}
+          value={dt(d.monthSales)}
+          icon={ShoppingCart}
+          tone="leaf"
+        />
+        <Kpi
+          label={translate("المدفوعات المستلمة هذا الشهر")}
+          value={dt(d.monthPaid)}
+          icon={Wallet}
+        />
+        <Kpi
+          label={translate("رصيد الصندوق المالي")}
+          value={dt(d.cashBal)}
+          icon={Landmark}
+          tone="leaf"
+        />
+        <Kpi
+          label={translate("إجمالي الديون")}
+          value={dt(d.creditTotal)}
+          icon={CreditCard}
+          tone="destructive"
+        />
+      </div>
+
+      {/* graphiques */}
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("تطور المبيعات والمدفوعات والديون")} className="xl:col-span-2">
           <div className="h-72">
@@ -210,33 +237,6 @@ function Dashboard() {
           </ResponsiveContainer>
         </div>
       </Panel>
-
-      {/* chiffres essentiels */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi
-          label={translate("مبيعات الشهر")}
-          value={dt(d.monthSales)}
-          icon={ShoppingCart}
-          tone="leaf"
-        />
-        <Kpi
-          label={translate("المدفوعات المستلمة هذا الشهر")}
-          value={dt(d.monthPaid)}
-          icon={Wallet}
-        />
-        <Kpi
-          label={translate("رصيد الصندوق المالي")}
-          value={dt(d.cashBal)}
-          icon={Landmark}
-          tone="leaf"
-        />
-        <Kpi
-          label={translate("إجمالي الديون")}
-          value={dt(d.creditTotal)}
-          icon={CreditCard}
-          tone="destructive"
-        />
-      </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel

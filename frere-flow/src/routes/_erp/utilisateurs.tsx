@@ -16,11 +16,11 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp, useLookups } from "@/store/store";
-import { upsert } from "@/services/ops";
+import { remove, upsert } from "@/services/ops";
 import { ALL_PERMS } from "@/mock/seed";
 import type { PermissionKey, Role, SecMode, User } from "@/types";
 import { DataTable } from "@/components/app/DataTable";
-import { Field, FormDialog, NativeSelect, NomAutreLangue } from "@/components/app/forms";
+import { Confirm, Field, FormDialog, NativeSelect, NomAutreLangue } from "@/components/app/forms";
 import { PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateFr } from "@/lib/format";
 
@@ -88,7 +88,8 @@ const modeLabel = (m?: SecMode) => SEC_MODES.find((x) => x.value === (m ?? "none
 
 function Admin() {
   useLanguage();
-  const { state, run, securite, emailDisponible } = useApp();
+  const { state, run, securite, emailDisponible, me } = useApp();
+  const [del, setDel] = useState<User | null>(null);
   const L = useLookups();
   const [u, setU] = useState<UDraft | null>(null);
   const enAttente = state.users.flatMap((x) =>
@@ -101,7 +102,7 @@ function Admin() {
     <div>
       <PageHeader
         title={translate("المستخدمون والأدوار")}
-        subtitle={translate("يمكن للمستخدم امتلاك دور واحد أو عدة أدوار")}
+        subtitle={translate("إضافة الحسابات وتعديلها وحذفها واختيار دور كل حساب")}
       />
       <Tabs defaultValue="users">
         <TabsList>
@@ -216,9 +217,26 @@ function Admin() {
                 {
                   header: "",
                   cell: (x) => (
-                    <Button size="icon" variant="ghost" onClick={() => setU(x)}>
-                      <Pencil className="size-4" />
-                    </Button>
+                    <span className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={translate("تعديل المستخدم")}
+                        onClick={() => setU(x)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      {x.id !== me?.id && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={translate("حذف الحساب")}
+                          onClick={() => setDel(x)}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
+                    </span>
                   ),
                 },
               ]}
@@ -453,29 +471,33 @@ function Admin() {
                 </Button>
               </div>
             )}
-            <Field label={translate("الأدوار")} className="sm:col-span-2">
-              <div className="flex flex-wrap gap-4 pt-1">
+            <Field label={translate("الدور")} className="sm:col-span-2">
+              <NativeSelect
+                aria-label={translate("الدور")}
+                value={u.roleIds[0] ?? ""}
+                onChange={(e) => setU({ ...u, roleIds: e.target.value ? [e.target.value] : [] })}
+              >
                 {state.roles.map((role) => (
-                  <label key={role.id} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={u.roleIds.includes(role.id)}
-                      onCheckedChange={(v) =>
-                        setU({
-                          ...u,
-                          roleIds: v
-                            ? [...u.roleIds, role.id]
-                            : u.roleIds.filter((x) => x !== role.id),
-                        })
-                      }
-                    />
+                  <option key={role.id} value={role.id}>
                     {translate(role.name ?? "")}
-                  </label>
+                  </option>
                 ))}
-              </div>
+              </NativeSelect>
             </Field>
           </div>
         </FormDialog>
       )}
+      <Confirm
+        open={!!del}
+        onOpenChange={() => setDel(null)}
+        title={translate("حذف هذا الحساب؟")}
+        description={`${translate(del?.name ?? "")} · ${del?.email ?? ""} — ${translate("لا يمكن التراجع عن هذا الإجراء.")}`}
+        label={translate("حذف")}
+        onConfirm={() => {
+          if (del) run(remove, "users", del.id);
+          setDel(null);
+        }}
+      />
       {r && (
         <FormDialog
           open
