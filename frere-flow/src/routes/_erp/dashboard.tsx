@@ -1,8 +1,5 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { DeadlineCalendar } from "@/components/deadlines/DeadlineCalendar";
-import { deadlineStatus } from "@/services/deadlines";
-import type { Credit } from "@/types";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -19,16 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  AlertTriangle,
-  Boxes,
-  CreditCard,
-  Landmark,
-  ShoppingCart,
-  Users,
-  Wallet,
-  Clock,
-} from "lucide-react";
+import { AlertTriangle, CreditCard, Landmark, ShoppingCart, Wallet } from "lucide-react";
 import { useApp, useLookups, useTeamScope } from "@/store/store";
 import { buildDashboardData } from "@/services/dashboard";
 import { stockOf } from "@/services/ops";
@@ -66,7 +54,7 @@ function Dashboard() {
   const { state, teamFilter } = useApp();
   const L = useLookups();
   const inScope = useTeamScope();
-  // date fixée à l'ouverture de la page (sinon tout était recalculé à chaque affichage)
+  // date fixée à l'ouverture de la page
   const today = useMemo(() => new Date().toISOString(), []);
   const [frigo, setFrigo] = useState("all");
   // filtre frigo : ventes, paiements et crédits de ce frigo ; stock de ce frigo seulement
@@ -85,12 +73,12 @@ function Dashboard() {
       creditPayments: state.creditPayments.filter((p) => ids.has(p.creditId)),
     };
   }, [state, frigo]);
-  // recalculé aussi au changement de langue (mois, noms d'équipes / frigos / caisses des graphiques)
+  // recalculé aussi au changement de langue (mois, noms des graphiques)
   const d = useMemo(
     () => buildDashboardData(etat, teamFilter, inScope, today),
     [etat, inScope, teamFilter, today, language], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  // stock : un groupe de barres par produit, une barre par frigo (tous les produits actifs)
+  // stock : un groupe de barres par produit, une barre par frigo
   const stockParProduit = useMemo(
     () =>
       etat.products
@@ -104,171 +92,36 @@ function Dashboard() {
   const montant = (v: unknown) => dt(Number(v));
   const kg = (v: unknown) => `${num(Number(v))} kg`;
   const court = (v: number) => (Math.abs(v) >= 1000 ? `${num(v / 1000, 1)}k` : num(v));
-  const pourcent = ({ percent }: { percent?: number }) =>
-    percent && percent > 0.04 ? `${Math.round(percent * 100)}%` : "";
   const nom = (n?: string) => translate(n ?? "");
-  // ── résumés explicatifs des graphiques (toujours calculés sur les données réelles) ──
-  const moisCourant = d.monthly[d.monthly.length - 1];
-  const moisPrecedent = d.monthly[d.monthly.length - 2];
-  const evolution =
-    moisPrecedent && moisPrecedent.ventes > 0
-      ? Math.round(((moisCourant?.ventes ?? 0) / moisPrecedent.ventes - 1) * 100)
-      : null;
-  const stockFrigo = d.stockByFrigo.map((f) => ({
-    name: f.name,
-    q: Object.entries(f)
-      .filter(([k]) => k !== "name")
-      .reduce((a, [, v]) => a + Number(v), 0),
-  }));
-  const caissesDehors = d.packDist.reduce((a, t) => a + t.value, 0);
 
-  const scopeLabel =
-    teamFilter === "all" ? translate("كل غرف التبريد") : nom(L.team.get(teamFilter)?.name);
-
-  // crédits à encaisser, groupés par échéance : ce qu'il faut récupérer en premier
-  const jour = today.slice(0, 10);
-  const dansJours = (n: number) =>
-    new Date(new Date(today).getTime() + n * 864e5).toISOString().slice(0, 10);
-  const somme = (garder: (due: string) => boolean) =>
-    d.openCredits.filter((c) => garder(c.dueDate)).reduce((a, c) => a + c.remainingAmount, 0);
-  const parEcheance = [
-    { name: translate("متأخر"), value: somme((x) => x < jour), fill: "var(--destructive)" },
-    {
-      name: translate("خلال 7 أيام"),
-      value: somme((x) => x >= jour && x <= dansJours(7)),
-      fill: "var(--warning)",
-    },
-    {
-      name: translate("خلال 30 يوماً"),
-      value: somme((x) => x > dansJours(7) && x <= dansJours(30)),
-      fill: "var(--chart-2)",
-    },
-    { name: translate("لاحقاً"), value: somme((x) => x > dansJours(30)), fill: "var(--chart-1)" },
+  const alertes = [
+    ...d.overdue.slice(0, 3).map((c) => ({
+      key: c.id,
+      tone: "destructive" as const,
+      text: `${translate("دين متأخر")} — ${nom(L.client.get(c.clientId)?.name)} (${dt(c.remainingAmount)})`,
+    })),
+    ...d.ruptures.slice(0, 2).map((x) => ({
+      key: "r" + x.p.id,
+      tone: "destructive" as const,
+      text: `${translate("نفاد المخزون")} — ${nom(x.p.name)}`,
+    })),
+    ...d.low.slice(0, 2).map((x) => ({
+      key: x.p.id + x.f.id,
+      tone: "warning" as const,
+      text: `${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`,
+    })),
   ];
-  const enRetard = parEcheance[0]!.value;
-  const nbAlertes =
-    d.overdue.length +
-    d.ruptures.length +
-    d.creditAlerts.length +
-    d.low.length +
-    d.packAlerts.length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={translate("لوحة المتابعة")}
-        subtitle={`${translate("نظرة عامة")} — ${scopeLabel}`}
         actions={<FiltreFrigo value={frigo} onChange={setFrigo} />}
       />
 
-      {/* 1. les chiffres essentiels */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi
-          label={translate("مبيعات الشهر")}
-          value={dt(d.monthSales)}
-          icon={ShoppingCart}
-          tone="leaf"
-        />
-        <Kpi
-          label={translate("المدفوعات المستلمة هذا الشهر")}
-          value={dt(d.monthPaid)}
-          icon={Wallet}
-        />
-        <Kpi
-          label={translate("رصيد الصندوق المالي")}
-          value={dt(d.cashBal)}
-          icon={Landmark}
-          tone="leaf"
-        />
-        <Kpi
-          label={translate("ديون للتحصيل")}
-          value={dt(d.creditTotal)}
-          hint={`${d.openCredits.length} ${translate("دين")}`}
-          icon={CreditCard}
-          tone="warning"
-        />
-        <Kpi
-          label={translate("ديون متأخرة")}
-          value={dt(enRetard)}
-          hint={`${d.overdue.length} ${translate("دين")}`}
-          icon={Clock}
-          tone="destructive"
-        />
-        <Kpi label={translate("الصناديق لدى العملاء")} value={num(d.pack)} icon={Boxes} />
-      </div>
-
-      {/* 2. à traiter maintenant : alertes, et à côté le calendrier des crédits */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Panel title={`${translate("التنبيهات")} (${nbAlertes})`} className="xl:col-span-2">
-          <div className="grid gap-2 text-sm md:grid-cols-2">
-            {d.overdue.slice(0, 4).map((c) => (
-              <Link key={c.id} to="/clients/$id" params={{ id: c.clientId }} className="block">
-                <Alert
-                  tone="destructive"
-                  text={`${translate("دين متأخر")} — ${nom(L.client.get(c.clientId)?.name)} (${dt(c.remainingAmount)})`}
-                />
-              </Link>
-            ))}
-            {d.ruptures.slice(0, 4).map((x) => (
-              <Link key={"r" + x.p.id} to="/produits" className="block">
-                <Alert
-                  tone="destructive"
-                  text={`${translate("نفاد المخزون")} — ${nom(x.p.name)}`}
-                />
-              </Link>
-            ))}
-            {d.creditAlerts.slice(0, 4).map((x) => (
-              <Link
-                key={"c" + x.clientId}
-                to="/clients/$id"
-                params={{ id: x.clientId }}
-                className="block"
-              >
-                <Alert
-                  tone="destructive"
-                  text={`${translate("دين مرتفع بعد بيع جديد")} — ${nom(L.client.get(x.clientId)?.name)} (${dt(x.total)})`}
-                />
-              </Link>
-            ))}
-            {d.low.slice(0, 4).map((x) => (
-              <Link key={x.p.id + x.f.id} to="/stock" className="block">
-                <Alert
-                  tone="warning"
-                  text={`${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`}
-                />
-              </Link>
-            ))}
-            {d.packAlerts.slice(0, 4).map((x) => (
-              <Link key={x.c.id} to="/emballages-soldes" className="block">
-                <Alert
-                  tone="warning"
-                  text={`${translate("صناديق غير مرجعة")} — ${nom(x.c.name)} (${x.r})`}
-                />
-              </Link>
-            ))}
-            {!nbAlertes && (
-              <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
-            )}
-          </div>
-        </Panel>
-        <CalendrierCredits credits={d.openCredits} />
-      </div>
-
-      {/* 3. évolution et ce qu'il reste à encaisser */}
+      {/* graphiques en haut */}
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("تطور المبيعات والمدفوعات والديون")} className="xl:col-span-2">
-          <p className="mb-2 text-xs text-muted-foreground">
-            {translate("هذا الشهر")}: {translate("المبيعات")} {dt(moisCourant?.ventes ?? 0)} ·{" "}
-            {translate("المدفوعات")} {dt(moisCourant?.paiements ?? 0)} · {translate("ديون جديدة")}{" "}
-            {dt(moisCourant?.credits ?? 0)}
-            {evolution !== null && (
-              <>
-                {" "}
-                — {evolution >= 0 ? "+" : ""}
-                {evolution}% {translate("مقارنة بالشهر السابق")}
-              </>
-            )}
-          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <AreaChart data={d.monthly}>
@@ -313,86 +166,11 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
         </Panel>
-        <Panel title={translate("الديون للتحصيل حسب الاستحقاق")}>
-          <p className="mb-2 text-xs text-muted-foreground">
-            {translate("ما يجب تحصيله أولاً")}: {translate("متأخر")} {dt(enRetard)} ·{" "}
-            {translate("خلال 7 أيام")} {dt(parEcheance[1]!.value)}
-          </p>
-          <div className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={parEcheance}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" fontSize={11} stroke="var(--muted-foreground)" interval={0} />
-                <YAxis
-                  fontSize={12}
-                  stroke="var(--muted-foreground)"
-                  tickFormatter={court}
-                  width={48}
-                />
-                <Tooltip formatter={montant} />
-                <Bar dataKey="value" name={translate("المبلغ")} radius={[4, 4, 0, 0]}>
-                  {parEcheance.map((x) => (
-                    <Cell key={x.name} fill={x.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-      </div>
-
-      {/* 4. stock et caisses */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Panel title={translate("المخزون حسب غرفة التبريد (كغ)")} className="xl:col-span-2">
-          <p className="mb-2 text-xs text-muted-foreground">
-            {stockFrigo.map((x, i) => (
-              <span key={x.name}>
-                {i > 0 && " · "}
-                {nom(x.name)}: {num(x.q)} kg
-              </span>
-            ))}
-          </p>
-          <div className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={stockParProduit}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" fontSize={11} stroke="var(--muted-foreground)" interval={0} />
-                <YAxis
-                  fontSize={12}
-                  stroke="var(--muted-foreground)"
-                  tickFormatter={court}
-                  width={48}
-                />
-                <Tooltip formatter={kg} />
-                <Legend />
-                {etat.frigos.map((x, i) => (
-                  <Bar
-                    key={x.id}
-                    dataKey={x.id}
-                    name={nom(x.name)}
-                    fill={C[i % C.length]}
-                    radius={[4, 4, 0, 0]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
         <Panel title={translate("الصناديق لدى العملاء")}>
-          <p className="mb-2 text-xs text-muted-foreground">
-            {translate("صناديقنا الموجودة حالياً عند العملاء")}: {num(caissesDehors)}
-          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <PieChart>
-                <Pie
-                  data={d.packDist}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={90}
-                  label={pourcent}
-                  labelLine={false}
-                >
+                <Pie data={d.packDist} dataKey="value" nameKey="name" outerRadius={90}>
                   {d.packDist.map((p) => (
                     <Cell key={translate(p.name ?? "")} fill={p.hex} />
                   ))}
@@ -405,7 +183,61 @@ function Dashboard() {
         </Panel>
       </div>
 
-      {/* 5. dernières ventes et meilleurs clients */}
+      <Panel title={translate("المخزون حسب غرفة التبريد (كغ)")}>
+        <div className="h-72">
+          <ResponsiveContainer>
+            <BarChart data={stockParProduit}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" fontSize={11} stroke="var(--muted-foreground)" interval={0} />
+              <YAxis
+                fontSize={12}
+                stroke="var(--muted-foreground)"
+                tickFormatter={court}
+                width={48}
+              />
+              <Tooltip formatter={kg} />
+              <Legend />
+              {etat.frigos.map((x, i) => (
+                <Bar
+                  key={x.id}
+                  dataKey={x.id}
+                  name={nom(x.name)}
+                  fill={C[i % C.length]}
+                  radius={[4, 4, 0, 0]}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Panel>
+
+      {/* chiffres essentiels */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi
+          label={translate("مبيعات الشهر")}
+          value={dt(d.monthSales)}
+          icon={ShoppingCart}
+          tone="leaf"
+        />
+        <Kpi
+          label={translate("المدفوعات المستلمة هذا الشهر")}
+          value={dt(d.monthPaid)}
+          icon={Wallet}
+        />
+        <Kpi
+          label={translate("رصيد الصندوق المالي")}
+          value={dt(d.cashBal)}
+          icon={Landmark}
+          tone="leaf"
+        />
+        <Kpi
+          label={translate("إجمالي الديون")}
+          value={dt(d.creditTotal)}
+          icon={CreditCard}
+          tone="destructive"
+        />
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel
           title={translate("أحدث المبيعات")}
@@ -417,14 +249,14 @@ function Dashboard() {
           }
         >
           <div className="divide-y">
-            {d.sales.slice(0, 6).map((v) => (
+            {d.sales.slice(0, 5).map((v) => (
               <div key={v.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <div className="min-w-0">
                   <p className="font-medium">
-                    {v.number} · {translate(L.client.get(v.clientId)?.name ?? "")}
+                    {v.number} · {nom(L.client.get(v.clientId)?.name)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {translate(L.frigo.get(v.frigoId)?.name ?? "")} · {dateFr(v.saleDate)}
+                    {nom(L.frigo.get(v.frigoId)?.name)} · {dateFr(v.saleDate)}
                   </p>
                 </div>
                 <div className="text-end">
@@ -438,15 +270,15 @@ function Dashboard() {
             ))}
           </div>
         </Panel>
-        <Panel title={translate("أبرز العملاء")}>
-          {d.top.map(([id, v], i) => (
-            <div key={id} className="flex justify-between py-1.5 text-sm">
-              <span>
-                {i + 1}. {translate(L.client.get(id)?.name ?? "")}
-              </span>
-              <span className="font-medium">{dt(v)}</span>
-            </div>
-          ))}
+        <Panel title={translate("التنبيهات")}>
+          <div className="space-y-2 text-sm">
+            {alertes.map((a) => (
+              <Alert key={a.key} tone={a.tone} text={a.text} />
+            ))}
+            {!alertes.length && (
+              <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
+            )}
+          </div>
         </Panel>
       </div>
     </div>
@@ -465,39 +297,5 @@ function Alert({ text, tone }: { text: string; tone: "warning" | "destructive" }
     >
       <AlertTriangle className="mt-0.5 size-4 shrink-0" /> <span>{text}</span>
     </div>
-  );
-}
-
-/** Calendrier des crédits à encaisser (section à côté des alertes) ; clic → page des échéances */
-function CalendrierCredits({ credits }: { credits: Credit[] }) {
-  useLanguage();
-  const { state, readOnly } = useApp();
-  const navigate = useNavigate();
-  const [anchor, setAnchor] = useState(() => new Date());
-  const rows = credits
-    .filter(
-      (c) =>
-        !readOnly ||
-        !c.reminderHistory?.some((r) => r.dueDate === c.dueDate) ||
-        deadlineStatus(state, c, new Date().toISOString()) === "OVERDUE",
-    )
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  return (
-    <Panel
-      title={translate("تقويم الديون")}
-      action={
-        <Link to="/echeances" className="text-sm text-primary hover:underline">
-          {translate("عرض الكل")}
-        </Link>
-      }
-    >
-      <DeadlineCalendar
-        rows={rows}
-        anchor={anchor}
-        onAnchor={setAnchor}
-        week
-        onSelect={() => navigate({ to: "/echeances" })}
-      />
-    </Panel>
   );
 }

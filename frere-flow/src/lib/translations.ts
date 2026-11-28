@@ -623,6 +623,8 @@ export const translations: Record<string, string> = {
   "صلاحيات تشغيلية محدودة": "Accès opérationnel limité",
   "غرفة تبريد فوزي": "Frigo Fawzi",
   "غرفة تبريد حسام": "Frigo Houssem",
+  "فوزي": "Fawzi",
+  "حسام": "Houssem",
   "غرفة التبريد 1": "Frigo Fawzi",
   "غرفة التبريد 2": "Frigo Houssem",
   "الفريق التجاري الأول": "Équipe commerciale X",

@@ -163,7 +163,7 @@ function Admin() {
                     password: "",
                     active: true,
                     createdAt: new Date().toISOString(),
-                    roleIds: ["role_emp"],
+                    roleIds: ["role_lecture"],
                     secMode: "none",
                   })
                 }

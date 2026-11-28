@@ -77,45 +77,10 @@ export function buildSeed(): AppState {
         description: "صلاحية كاملة لجميع الأقسام",
         permissions: [...SUPER_PERMS],
       },
-      {
-        id: "role_admin",
-        name: "مدير",
-        description: "إدارة العمليات اليومية",
-        permissions: [
-          "dashboard",
-          "clients",
-          "produits",
-          "ventes",
-          "marches",
-          "credits",
-          "paiements",
-          "caisse",
-          "stock",
-          "frigos",
-          "emballages",
-          "equipes",
-          "rapports",
-        ],
-      },
-      {
-        id: "role_emp",
-        name: "موظف",
-        description: "صلاحيات تشغيلية محدودة",
-        permissions: [
-          "dashboard",
-          "clients",
-          "ventes",
-          "marches",
-          "paiements",
-          "emballages",
-          "produits",
-          "stock",
-        ],
-      },
       { ...MARKET_ROLE, permissions: [...MARKET_ROLE.permissions] },
       { ...READONLY_ROLE, permissions: [...READONLY_ROLE.permissions] },
     ],
-    // 3 comptes stables (identiques à chaque installation, à changer ensuite par le client) + comptes de démonstration
+    // 3 comptes uniquement : direction, marché, consultation (à changer ensuite par le client)
     users: [
       {
         id: "u_super",
@@ -153,44 +118,6 @@ export function buildSeed(): AppState {
         secMode: "none",
         passwordInitial: true,
       },
-      {
-        id: "u_admin",
-        name: "نادية محجوب",
-        email: "admin@frere-mahjoub.tn",
-        phone: "+216 98 300 200",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-02-11",
-        roleIds: ["role_admin"],
-        secMode: "none",
-        passwordInitial: true,
-      },
-      {
-        id: "u_x",
-        name: "وليد كمون",
-        email: "walid@frere-mahjoub.tn",
-        phone: "+216 22 110 330",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-03-01",
-        roleIds: ["role_emp"],
-        teamId: "team_1",
-        secMode: "none",
-        passwordInitial: true,
-      },
-      {
-        id: "u_y",
-        name: "رياض شعبان",
-        email: "riadh@frere-mahjoub.tn",
-        phone: "+216 55 870 441",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-03-01",
-        roleIds: ["role_emp"],
-        teamId: "team_2",
-        secMode: "none",
-        passwordInitial: true,
-      },
     ],
     teams: [
       {
@@ -199,7 +126,7 @@ export function buildSeed(): AppState {
         nameAlt: "Frigo Fawzi",
         code: "FAWZI",
         description: "فريق غرفة تبريد فوزي",
-        responsable: "وليد كمون",
+        responsable: "فوزي",
         active: true,
       },
       {
@@ -208,7 +135,7 @@ export function buildSeed(): AppState {
         nameAlt: "Frigo Houssem",
         code: "HOUSSEM",
         description: "فريق غرفة تبريد حسام",
-        responsable: "رياض شعبان",
+        responsable: "حسام",
         active: true,
       },
     ],
@@ -373,7 +300,7 @@ export function buildSeed(): AppState {
           reference: `BR-${100 + pi * 3 + fi}`,
           notes: "استلام المحصول",
         },
-        "u_admin",
+        "u_super",
         day(190),
       );
     }),
@@ -389,7 +316,7 @@ export function buildSeed(): AppState {
       reference: "TR-001",
       notes: "إعادة توزيع",
     },
-    "u_admin",
+    "u_super",
     day(60),
   );
 
@@ -398,7 +325,7 @@ export function buildSeed(): AppState {
   for (let i = 0; i < 46; i++) {
     const offset = 180 - Math.floor(i * 3.9) - Math.floor(rnd() * 3);
     const teamId = i % 2 ? "team_2" : "team_1";
-    const userId = teamId === "team_1" ? "u_x" : "u_y";
+    const userId = "u_super";
     const client = pick(s.clients);
     const frigoId = pick(s.frigos).id;
     const lines = Array.from({ length: 1 + Math.floor(rnd() * 3) }, () => {
@@ -446,7 +373,7 @@ export function buildSeed(): AppState {
       s = addCreditPayment(
         s,
         { creditId: c.id, amount, method: "ESPECES", notes: "دفعة" },
-        c.teamId === "team_1" ? "u_x" : "u_y",
+        "u_super",
         d,
       );
   }
@@ -466,7 +393,7 @@ export function buildSeed(): AppState {
           quantity: Math.ceil(m.quantity * 0.6),
           notes: "مرتجع العميل",
         },
-        "u_x",
+        "u_super",
         d,
       );
     } catch {
@@ -490,7 +417,7 @@ export function buildSeed(): AppState {
           quantity: q,
           notes: "صناديق العميل",
         },
-        "u_admin",
+        "u_super",
         day(5),
       );
   }
