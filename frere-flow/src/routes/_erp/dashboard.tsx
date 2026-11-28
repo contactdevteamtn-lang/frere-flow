@@ -68,6 +68,22 @@ function Dashboard() {
     [state, inScope, teamFilter, today, language], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const nom = (n?: string) => translate(n ?? "");
+  // ── résumés explicatifs des graphiques (toujours calculés sur les données réelles) ──
+  const moisCourant = d.monthly[d.monthly.length - 1];
+  const moisPrecedent = d.monthly[d.monthly.length - 2];
+  const evolution =
+    moisPrecedent && moisPrecedent.ventes > 0
+      ? Math.round(((moisCourant?.ventes ?? 0) / moisPrecedent.ventes - 1) * 100)
+      : null;
+  const totalEquipes = d.byTeam.reduce((a, t) => a + t.value, 0);
+  const meilleure = [...d.byTeam].sort((a, b) => b.value - a.value)[0];
+  const stockFrigo = d.stockByFrigo.map((f) => ({
+    name: f.name,
+    q: Object.entries(f)
+      .filter(([k]) => k !== "name")
+      .reduce((a, [, v]) => a + Number(v), 0),
+  }));
+  const caissesDehors = d.packDist.reduce((a, t) => a + t.value, 0);
 
   const scopeLabel =
     teamFilter === "all" ? translate("كل فرق فيغو") : nom(L.team.get(teamFilter)?.name);
@@ -126,6 +142,18 @@ function Dashboard() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("تطور المبيعات والمدفوعات والديون")} className="xl:col-span-2">
+          <p className="mb-2 text-xs text-muted-foreground">
+            {translate("هذا الشهر")}: {translate("المبيعات")} {dt(moisCourant?.ventes ?? 0)} ·{" "}
+            {translate("المدفوعات")} {dt(moisCourant?.paiements ?? 0)} · {translate("ديون جديدة")}{" "}
+            {dt(moisCourant?.credits ?? 0)}
+            {evolution !== null && (
+              <>
+                {" "}
+                — {evolution >= 0 ? "+" : ""}
+                {evolution}% {translate("مقارنة بالشهر السابق")}
+              </>
+            )}
+          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <AreaChart data={d.monthly}>
@@ -166,6 +194,16 @@ function Dashboard() {
           </div>
         </Panel>
         <Panel title={translate("المبيعات حسب فريق فيغو")}>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {meilleure && totalEquipes > 0 ? (
+              <>
+                {nom(meilleure.name)} {translate("في الصدارة")}: {dt(meilleure.value)} (
+                {Math.round((meilleure.value / totalEquipes) * 100)}%)
+              </>
+            ) : (
+              translate("لا توجد مبيعات بعد")
+            )}
+          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <PieChart>
@@ -191,6 +229,14 @@ function Dashboard() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("المخزون حسب غرفة التبريد (كغ)")} className="xl:col-span-2">
+          <p className="mb-2 text-xs text-muted-foreground">
+            {stockFrigo.map((f, i) => (
+              <span key={f.name}>
+                {i > 0 && " · "}
+                {nom(f.name)}: {num(f.q)} kg
+              </span>
+            ))}
+          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <BarChart data={d.stockByFrigo}>
@@ -213,6 +259,9 @@ function Dashboard() {
           </div>
         </Panel>
         <Panel title={translate("الصناديق لدى العملاء")}>
+          <p className="mb-2 text-xs text-muted-foreground">
+            {translate("صناديقنا الموجودة حالياً عند العملاء")}: {num(caissesDehors)}
+          </p>
           <div className="h-72">
             <ResponsiveContainer>
               <PieChart>
@@ -278,6 +327,27 @@ function Dashboard() {
                 text={`${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`}
               />
             ))}
+            {d.ruptures.slice(0, 4).map((x) => (
+              <Link key={"r" + x.p.id} to="/produits" className="block">
+                <Alert
+                  tone="destructive"
+                  text={`${translate("نفاد المخزون")} — ${nom(x.p.name)} (${num(x.q)} kg)`}
+                />
+              </Link>
+            ))}
+            {d.creditAlerts.slice(0, 4).map((x) => (
+              <Link
+                key={"c" + x.clientId}
+                to="/clients/$id"
+                params={{ id: x.clientId }}
+                className="block"
+              >
+                <Alert
+                  tone="destructive"
+                  text={`${translate("دين مرتفع بعد بيع جديد")} — ${nom(L.client.get(x.clientId)?.name)} (${dt(x.total)} ≥ ${dt(d.seuilCredit)})`}
+                />
+              </Link>
+            ))}
             {d.packAlerts.slice(0, 3).map((x) => (
               <Alert
                 key={x.c.id}
@@ -288,9 +358,13 @@ function Dashboard() {
             {d.pending.slice(0, 2).map((s) => (
               <Alert key={s.id} tone="warning" text={`${translate("دفعة معلقة")} — ${s.number}`} />
             ))}
-            {!d.overdue.length && !d.low.length && !d.packAlerts.length && (
-              <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
-            )}
+            {!d.overdue.length &&
+              !d.low.length &&
+              !d.packAlerts.length &&
+              !d.ruptures.length &&
+              !d.creditAlerts.length && (
+                <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
+              )}
           </div>
           <div className="mt-5 border-t pt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

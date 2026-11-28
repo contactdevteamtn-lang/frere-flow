@@ -323,5 +323,7 @@ export interface AppState {
     currency: string;
     defaultDueDays: number;
     packagingAlert: number;
+    /** seuil d'alerte « crédit élevé » d'un client (TND) */
+    creditAlert?: number;
   };
 }

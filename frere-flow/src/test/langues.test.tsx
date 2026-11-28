@@ -118,7 +118,8 @@ describe("traductions du code", () => {
       fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
         const p = path.join(d, e.name);
         if (e.isDirectory()) return ["test", "mock"].includes(e.name) ? [] : fichiers(p);
-        return /\.tsx?$/.test(e.name) && !/translations\.ts$|translit\.ts$|catalogue\.ts$|routeTree\.gen/.test(p)
+        return /\.tsx?$/.test(e.name) &&
+          !/translations\.ts$|translit\.ts$|catalogue\.ts$|routeTree\.gen/.test(p)
           ? [p]
           : [];
       });

@@ -87,6 +87,18 @@ function Parametres() {
               onChange={(e) => setS({ ...s, packagingAlert: Number(e.target.value) })}
             />
           </Field>
+          <Field label={translate("حد تنبيه الدين المرتفع (د.ت)")}>
+            <Input
+              type="number"
+              min={0}
+              step="1"
+              required
+              inputMode="numeric"
+              placeholder={translate("مثال: 1000")}
+              value={s.creditAlert ?? 1000}
+              onChange={(e) => setS({ ...s, creditAlert: Number(e.target.value) })}
+            />
+          </Field>
           <div className="sm:col-span-2">
             <Button type="submit">{<Text>{"حفظ"}</Text>}</Button>
           </div>

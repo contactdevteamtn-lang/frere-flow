@@ -464,6 +464,7 @@ export function validateSettings(v: unknown) {
     currency: "TND",
     defaultDueDays: num(x["defaultDueDays"], V.days, { min: 1, max: 365, integer: true }),
     packagingAlert: num(x["packagingAlert"], V.alert, { min: 0, max: 100_000, integer: true }),
+    creditAlert: num(x["creditAlert"] ?? 1000, V.alert, { min: 0, max: 10_000_000 }),
   };
 }
 

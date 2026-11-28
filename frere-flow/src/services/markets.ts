@@ -462,3 +462,55 @@ export function closeMarketTrip(
   });
   return s;
 }
+
+/**
+ * Bilan de fin de journée d'une expédition, à partir des données réelles :
+ *  - par frigo : quantité chargée, vendue (ventes réparties dans l'ordre des chargements), montant estimé ;
+ *  - argent : total des ventes, encaissé (espèces / chèques), laissé à crédit, nombre de factures ;
+ *  - retours au frigo et écarts constatés à la clôture.
+ */
+export function bilanJournee(s: AppState, trip: MarketTrip) {
+  const totals = tripTotals(s, trip);
+  const bal = tripProductBalance(s, trip);
+  const saleIds = new Set(tripSales(s, trip.id).map((x) => x.id));
+  // prix moyen vendu par produit (montant / quantité)
+  const prix = new Map<ID, number>();
+  for (const pid of bal.keys()) {
+    const lignes = s.saleItems.filter((i) => saleIds.has(i.saleId) && i.productId === pid);
+    const q = lignes.reduce((a, i) => a + i.quantity, 0);
+    prix.set(pid, q ? lignes.reduce((a, i) => a + i.total, 0) / q : 0);
+  }
+  const parFrigo = new Map<
+    ID,
+    { chargé: number; vendu: number; montant: number; retour: number }
+  >();
+  for (const [pid, b] of bal) {
+    let resteVendu = b.sold;
+    for (const load of trip.loads.filter((l) => l.productId === pid)) {
+      const vendu = Math.min(resteVendu, load.quantity);
+      resteVendu = round(resteVendu - vendu);
+      const r = parFrigo.get(load.frigoId) ?? { chargé: 0, vendu: 0, montant: 0, retour: 0 };
+      r.chargé = round(r.chargé + load.quantity);
+      r.vendu = round(r.vendu + vendu);
+      r.montant = round(r.montant + vendu * (prix.get(pid) ?? 0));
+      parFrigo.set(load.frigoId, r);
+    }
+  }
+  for (const ret of trip.closing?.returns ?? []) {
+    const r = parFrigo.get(ret.frigoId);
+    if (r) r.retour = round(r.retour + ret.quantity);
+  }
+  return {
+    parFrigo: [...parFrigo.entries()].map(([frigoId, v]) => ({ frigoId, ...v })),
+    ventes: totals.total,
+    encaisse: totals.paid,
+    especes: totals.cash,
+    cheques: totals.cheques,
+    credit: totals.remaining,
+    factures: totals.count,
+    charge: totals.sent,
+    vendu: round([...bal.values()].reduce((a, b) => a + b.sold, 0)),
+    ecartMarchandise: trip.closing?.goodsGap ?? null,
+    ecartCaisse: trip.closing?.cashGap ?? null,
+  };
+}

@@ -26,6 +26,7 @@ import {
   tripSales,
   tripTotals,
   type MarketSaleInput,
+  bilanJournee,
 } from "@/services/markets";
 import type { MarketTrip } from "@/types";
 import { Confirm, Edit, Field, FormDialog, NativeSelect } from "@/components/app/forms";
@@ -269,6 +270,8 @@ function TripPage() {
           </div>
         )}
       </Panel>
+
+      <BilanJour trip={trip} />
 
       <Panel title={<SectionTitle n={3} icon={ClipboardCheck} title="حصيلة آخر اليوم / الإغلاق" />}>
         {open ? <ClosingForm trip={trip} /> : <ClosingSummary trip={trip} />}
@@ -824,5 +827,73 @@ function ClosingSummary({ trip }: { trip: MarketTrip }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Bilan de fin de journée, clair et expliqué (données réelles de l'expédition) */
+function BilanJour({ trip }: { trip: MarketTrip }) {
+  useLanguage();
+  const { state } = useApp();
+  const b = bilanJournee(state, trip);
+  const ligne = (label: string, valeur: string, aide?: string, ton?: string) => (
+    <div className="flex items-baseline justify-between gap-3 border-b py-1.5 last:border-0">
+      <span>
+        {translate(label)}
+        {aide && <span className="block text-xs text-muted-foreground">{translate(aide)}</span>}
+      </span>
+      <b className={ton}>{valeur}</b>
+    </div>
+  );
+  return (
+    <Panel title={translate("حصيلة اليوم (مبسطة)")}>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <p className="mb-2 text-sm font-semibold">{translate("البضاعة حسب غرفة التبريد")}</p>
+          {b.parFrigo.map((x) => (
+            <div key={x.frigoId} className="mb-2 rounded-lg bg-muted/50 p-2 text-sm">
+              <p className="font-medium">
+                {translate(state.frigos.find((f) => f.id === x.frigoId)?.name ?? "")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {translate("محمّل")} {num(x.chargé, 1)} kg · {translate("مباع")} {num(x.vendu, 1)} kg
+                · {translate("مرتجع")} {num(x.retour, 1)} kg · {dt(x.montant)}
+              </p>
+            </div>
+          ))}
+          {ligne("إجمالي المحمّل", `${num(b.charge, 1)} kg`)}
+          {ligne(
+            "إجمالي المباع",
+            `${num(b.vendu, 1)} kg`,
+            "الكمية التي خرجت من الشاحنة إلى العملاء",
+          )}
+        </div>
+        <div className="text-sm">
+          <p className="mb-2 font-semibold">{translate("المال")}</p>
+          {ligne("مبيعات اليوم", dt(b.ventes), `${b.factures} ${translate("فاتورة")}`)}
+          {ligne("المقبوض نقداً", dt(b.especes), "يجب أن يكون في الصندوق")}
+          {ligne("المقبوض بالشيكات", dt(b.cheques))}
+          {ligne(
+            "بقي ديناً على العملاء",
+            dt(b.credit),
+            "يُسجّل في ديون السوق",
+            b.credit > 0 ? "text-destructive" : "",
+          )}
+          {b.ecartMarchandise !== null &&
+            ligne(
+              "فارق البضاعة عند الإغلاق",
+              `${num(b.ecartMarchandise, 1)} kg`,
+              "المرتجع الفعلي ناقص المتبقي المتوقع (سالب = نقص)",
+              b.ecartMarchandise < 0 ? "text-destructive" : "",
+            )}
+          {b.ecartCaisse !== null &&
+            ligne(
+              "فارق الصندوق عند الإغلاق",
+              dt(b.ecartCaisse),
+              "المبلغ المعدود ناقص المبلغ المتوقع (سالب = نقص)",
+              b.ecartCaisse < 0 ? "text-destructive" : "",
+            )}
+        </div>
+      </div>
+    </Panel>
   );
 }

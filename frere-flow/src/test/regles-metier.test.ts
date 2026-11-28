@@ -526,3 +526,28 @@ describe("modification complète d'une facture", () => {
     ).toThrow();
   });
 });
+
+describe("alertes du tableau de bord (données réelles)", () => {
+  it("rupture de stock, crédit élevé après une vente récente, caisses élevées", async () => {
+    const { buildDashboardData } = await import("@/services/dashboard");
+    let s = vente(base, 0); // vente récente à crédit (20 DT)
+    s = { ...s, settings: { ...s.settings, creditAlert: 1, packagingAlert: 1 } };
+    // produit vidé : sortie de tout son stock
+    const vide = s.products.find((x) => x.active && ops.stockTotal(s, x.id) > 0)!;
+    for (const f of s.frigos) {
+      const q = ops.stockOf(s, vide.id, f.id);
+      if (q > 0)
+        s = exec(s, "addStockMovement", {
+          productId: vide.id,
+          frigoId: f.id,
+          quantity: q,
+          movementType: "SORTIE",
+          notes: "",
+        });
+    }
+    const d = buildDashboardData(s, "all", () => true, NOW);
+    expect(d.ruptures.some((r) => r.p.id === vide.id)).toBe(true);
+    expect(d.creditAlerts.some((c) => c.clientId === client.id)).toBe(true);
+    expect(d.packAlerts.length).toBeGreaterThan(0);
+  });
+});

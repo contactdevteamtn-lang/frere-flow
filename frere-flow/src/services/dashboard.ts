@@ -127,6 +127,32 @@ export function buildDashboardData(
       r: packBalance(state, { clientId: client.id, teamId: scopeTeamId }).remaining,
     }))
     .filter((item) => item.r >= state.settings.packagingAlert);
+  // rupture de stock : quantité totale (tous frigos) à 0 ou en dessous
+  const ruptures = state.products
+    .filter((product) => product.active)
+    .map((product) => ({
+      p: product,
+      q: state.frigos.reduce((a, f) => a + stockOf(state, product.id, f.id), 0),
+    }))
+    .filter((item) => item.q <= 0);
+  // client avec une vente récente (7 jours) à crédit et un crédit total au-dessus du seuil
+  const seuilCredit = state.settings.creditAlert ?? 1000;
+  const depuis = new Date(new Date(today).getTime() - 7 * 864e5).toISOString();
+  const creditAlerts = [
+    ...new Set(
+      sales
+        .filter((sale) => sale.saleDate >= depuis && sale.remainingAmount > 0)
+        .map((sale) => sale.clientId),
+    ),
+  ]
+    .map((clientId) => ({
+      clientId,
+      total: openCredits
+        .filter((credit) => credit.clientId === clientId)
+        .reduce((a, credit) => a + credit.remainingAmount, 0),
+    }))
+    .filter((item) => item.total >= seuilCredit)
+    .sort((a, b) => b.total - a.total);
 
   return {
     sales,
@@ -149,6 +175,9 @@ export function buildDashboardData(
     top,
     low,
     packAlerts,
+    ruptures,
+    creditAlerts,
+    seuilCredit,
     pending: sales.filter((sale) => sale.saleStatusId === "ss_pending"),
   };
 }

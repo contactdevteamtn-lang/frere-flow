@@ -346,6 +346,7 @@ export function buildSeed(): AppState {
       currency: "TND",
       defaultDueDays: 30,
       packagingAlert: 40,
+      creditAlert: 1000,
     },
   };
 
