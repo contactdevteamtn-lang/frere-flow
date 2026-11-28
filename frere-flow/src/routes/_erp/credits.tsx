@@ -26,9 +26,9 @@ export const Route = createFileRoute("/_erp/credits")({
   head: () => ({
     meta: [
       { title: "Crédits — Frère Mahjoub" },
-      { name: "description", content: "Suivi des crédits clients par Figo." },
+      { name: "description", content: "Suivi des crédits clients par Frigo." },
       { property: "og:title", content: "Crédits — Frère Mahjoub" },
-      { property: "og:description", content: "Suivi des crédits clients par Figo." },
+      { property: "og:description", content: "Suivi des crédits clients par Frigo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -130,7 +130,7 @@ function Credits() {
     <div>
       <PageHeader
         title={translate("الديون")}
-        subtitle={translate("كل دين مرتبط بعملية البيع وفريق فيغو الخاص به")}
+        subtitle={translate("كل دين مرتبط بعملية البيع وغرفة التبريد الخاص به")}
         actions={
           can("credits") && (
             <Edit>
@@ -193,7 +193,7 @@ function Credits() {
               ),
               sort: (c) => L.client.get(c.clientId)?.name ?? "",
             },
-            { header: translate("فيغو"), cell: (c) => L.team.get(c.teamId)?.name },
+            { header: translate("غرفة التبريد"), cell: (c) => L.team.get(c.teamId)?.name },
             {
               header: translate("عملية بيع"),
               cell: (c) => (
@@ -344,7 +344,7 @@ function Credits() {
                   ))}
               </NativeSelect>
             </Field>
-            <Field label={translate("فيغو")}>
+            <Field label={translate("غرفة التبريد")}>
               <NativeSelect
                 value={nc.teamId}
                 onChange={(e) => setNc({ ...nc, teamId: e.target.value })}

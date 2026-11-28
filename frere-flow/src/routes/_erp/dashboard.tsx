@@ -1,5 +1,8 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { DeadlineCalendar } from "@/components/deadlines/DeadlineCalendar";
+import { deadlineStatus } from "@/services/deadlines";
+import type { Credit } from "@/types";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -111,8 +114,6 @@ function Dashboard() {
     moisPrecedent && moisPrecedent.ventes > 0
       ? Math.round(((moisCourant?.ventes ?? 0) / moisPrecedent.ventes - 1) * 100)
       : null;
-  const totalEquipes = d.byTeam.reduce((a, t) => a + t.value, 0);
-  const meilleure = [...d.byTeam].sort((a, b) => b.value - a.value)[0];
   const stockFrigo = d.stockByFrigo.map((f) => ({
     name: f.name,
     q: Object.entries(f)
@@ -122,7 +123,35 @@ function Dashboard() {
   const caissesDehors = d.packDist.reduce((a, t) => a + t.value, 0);
 
   const scopeLabel =
-    teamFilter === "all" ? translate("كل فرق فيغو") : nom(L.team.get(teamFilter)?.name);
+    teamFilter === "all" ? translate("كل غرف التبريد") : nom(L.team.get(teamFilter)?.name);
+
+  // crédits à encaisser, groupés par échéance : ce qu'il faut récupérer en premier
+  const jour = today.slice(0, 10);
+  const dansJours = (n: number) =>
+    new Date(new Date(today).getTime() + n * 864e5).toISOString().slice(0, 10);
+  const somme = (garder: (due: string) => boolean) =>
+    d.openCredits.filter((c) => garder(c.dueDate)).reduce((a, c) => a + c.remainingAmount, 0);
+  const parEcheance = [
+    { name: translate("متأخر"), value: somme((x) => x < jour), fill: "var(--destructive)" },
+    {
+      name: translate("خلال 7 أيام"),
+      value: somme((x) => x >= jour && x <= dansJours(7)),
+      fill: "var(--warning)",
+    },
+    {
+      name: translate("خلال 30 يوماً"),
+      value: somme((x) => x > dansJours(7) && x <= dansJours(30)),
+      fill: "var(--chart-2)",
+    },
+    { name: translate("لاحقاً"), value: somme((x) => x > dansJours(30)), fill: "var(--chart-1)" },
+  ];
+  const enRetard = parEcheance[0]!.value;
+  const nbAlertes =
+    d.overdue.length +
+    d.ruptures.length +
+    d.creditAlerts.length +
+    d.low.length +
+    d.packAlerts.length;
 
   return (
     <div className="space-y-6">
@@ -131,13 +160,9 @@ function Dashboard() {
         subtitle={`${translate("نظرة عامة")} — ${scopeLabel}`}
         actions={<FiltreFrigo value={frigo} onChange={setFrigo} />}
       />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi
-          label={translate("إجمالي العملاء")}
-          value={state.clients.length}
-          hint={translate(`${d.activeClients} نشط خلال 90 يوماً`)}
-          icon={Users}
-        />
+
+      {/* 1. les chiffres essentiels */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Kpi
           label={translate("مبيعات الشهر")}
           value={dt(d.monthSales)}
@@ -156,27 +181,80 @@ function Dashboard() {
           tone="leaf"
         />
         <Kpi
-          label={translate("الديون القائمة")}
-          value={d.openCredits.length}
-          hint={translate(`${d.overdue.length} متأخر`)}
+          label={translate("ديون للتحصيل")}
+          value={dt(d.creditTotal)}
+          hint={`${d.openCredits.length} ${translate("دين")}`}
           icon={CreditCard}
           tone="warning"
         />
         <Kpi
-          label={translate("إجمالي الديون")}
-          value={dt(d.creditTotal)}
-          icon={CreditCard}
+          label={translate("ديون متأخرة")}
+          value={dt(enRetard)}
+          hint={`${d.overdue.length} ${translate("دين")}`}
+          icon={Clock}
           tone="destructive"
         />
         <Kpi label={translate("الصناديق لدى العملاء")} value={num(d.pack)} icon={Boxes} />
-        <Kpi
-          label={translate("المبيعات المعلقة")}
-          value={d.pending.length}
-          icon={Clock}
-          tone="warning"
-        />
       </div>
 
+      {/* 2. à traiter maintenant : alertes, et à côté le calendrier des crédits */}
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Panel title={`${translate("التنبيهات")} (${nbAlertes})`} className="xl:col-span-2">
+          <div className="grid gap-2 text-sm md:grid-cols-2">
+            {d.overdue.slice(0, 4).map((c) => (
+              <Link key={c.id} to="/clients/$id" params={{ id: c.clientId }} className="block">
+                <Alert
+                  tone="destructive"
+                  text={`${translate("دين متأخر")} — ${nom(L.client.get(c.clientId)?.name)} (${dt(c.remainingAmount)})`}
+                />
+              </Link>
+            ))}
+            {d.ruptures.slice(0, 4).map((x) => (
+              <Link key={"r" + x.p.id} to="/produits" className="block">
+                <Alert
+                  tone="destructive"
+                  text={`${translate("نفاد المخزون")} — ${nom(x.p.name)}`}
+                />
+              </Link>
+            ))}
+            {d.creditAlerts.slice(0, 4).map((x) => (
+              <Link
+                key={"c" + x.clientId}
+                to="/clients/$id"
+                params={{ id: x.clientId }}
+                className="block"
+              >
+                <Alert
+                  tone="destructive"
+                  text={`${translate("دين مرتفع بعد بيع جديد")} — ${nom(L.client.get(x.clientId)?.name)} (${dt(x.total)})`}
+                />
+              </Link>
+            ))}
+            {d.low.slice(0, 4).map((x) => (
+              <Link key={x.p.id + x.f.id} to="/stock" className="block">
+                <Alert
+                  tone="warning"
+                  text={`${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`}
+                />
+              </Link>
+            ))}
+            {d.packAlerts.slice(0, 4).map((x) => (
+              <Link key={x.c.id} to="/emballages-soldes" className="block">
+                <Alert
+                  tone="warning"
+                  text={`${translate("صناديق غير مرجعة")} — ${nom(x.c.name)} (${x.r})`}
+                />
+              </Link>
+            ))}
+            {!nbAlertes && (
+              <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
+            )}
+          </div>
+        </Panel>
+        <CalendrierCredits credits={d.openCredits} />
+      </div>
+
+      {/* 3. évolution et ce qu'il reste à encaisser */}
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("تطور المبيعات والمدفوعات والديون")} className="xl:col-span-2">
           <p className="mb-2 text-xs text-muted-foreground">
@@ -235,49 +313,42 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
         </Panel>
-        <Panel title={translate("المبيعات حسب فريق فيغو")}>
+        <Panel title={translate("الديون للتحصيل حسب الاستحقاق")}>
           <p className="mb-2 text-xs text-muted-foreground">
-            {meilleure && totalEquipes > 0 ? (
-              <>
-                {nom(meilleure.name)} {translate("في الصدارة")}: {dt(meilleure.value)} (
-                {Math.round((meilleure.value / totalEquipes) * 100)}%)
-              </>
-            ) : (
-              translate("لا توجد مبيعات بعد")
-            )}
+            {translate("ما يجب تحصيله أولاً")}: {translate("متأخر")} {dt(enRetard)} ·{" "}
+            {translate("خلال 7 أيام")} {dt(parEcheance[1]!.value)}
           </p>
           <div className="h-72">
             <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={d.byTeam}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  label={pourcent}
-                  labelLine={false}
-                >
-                  {d.byTeam.map((_, i) => (
-                    <Cell key={i} fill={C[i]} />
+              <BarChart data={parEcheance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" fontSize={11} stroke="var(--muted-foreground)" interval={0} />
+                <YAxis
+                  fontSize={12}
+                  stroke="var(--muted-foreground)"
+                  tickFormatter={court}
+                  width={48}
+                />
+                <Tooltip formatter={montant} />
+                <Bar dataKey="value" name={translate("المبلغ")} radius={[4, 4, 0, 0]}>
+                  {parEcheance.map((x) => (
+                    <Cell key={x.name} fill={x.fill} />
                   ))}
-                </Pie>
-                <Tooltip formatter={(v) => dt(Number(v))} />
-                <Legend />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </Panel>
       </div>
 
+      {/* 4. stock et caisses */}
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel title={translate("المخزون حسب غرفة التبريد (كغ)")} className="xl:col-span-2">
           <p className="mb-2 text-xs text-muted-foreground">
-            {stockFrigo.map((f, i) => (
-              <span key={f.name}>
+            {stockFrigo.map((x, i) => (
+              <span key={x.name}>
                 {i > 0 && " · "}
-                {nom(f.name)}: {num(f.q)} kg
+                {nom(x.name)}: {num(x.q)} kg
               </span>
             ))}
           </p>
@@ -334,6 +405,7 @@ function Dashboard() {
         </Panel>
       </div>
 
+      {/* 5. dernières ventes et meilleurs clients */}
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel
           title={translate("أحدث المبيعات")}
@@ -345,96 +417,36 @@ function Dashboard() {
           }
         >
           <div className="divide-y">
-            {d.sales.slice(0, 6).map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+            {d.sales.slice(0, 6).map((v) => (
+              <div key={v.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <div className="min-w-0">
                   <p className="font-medium">
-                    {s.number} · {translate(L.client.get(s.clientId)?.name ?? "")}
+                    {v.number} · {translate(L.client.get(v.clientId)?.name ?? "")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {translate(L.team.get(s.teamId)?.name ?? "")} ·{" "}
-                    {translate(L.frigo.get(s.frigoId)?.name ?? "")} · {dateFr(s.saleDate)}
+                    {translate(L.frigo.get(v.frigoId)?.name ?? "")} · {dateFr(v.saleDate)}
                   </p>
                 </div>
                 <div className="text-end">
-                  <p className="font-semibold">{dt(s.totalAmount)}</p>
+                  <p className="font-semibold">{dt(v.totalAmount)}</p>
                   <Status
-                    value={L.saleStatus.get(s.saleStatusId)?.code ?? ""}
-                    label={L.saleStatus.get(s.saleStatusId)?.label}
+                    value={L.saleStatus.get(v.saleStatusId)?.code ?? ""}
+                    label={L.saleStatus.get(v.saleStatusId)?.label}
                   />
                 </div>
               </div>
             ))}
           </div>
         </Panel>
-        <Panel title={translate("التنبيهات")}>
-          <div className="space-y-2 text-sm">
-            {d.overdue.slice(0, 4).map((c) => (
-              <Alert
-                key={c.id}
-                tone="destructive"
-                text={`${translate("دين متأخر")} — ${nom(L.client.get(c.clientId)?.name)} (${dt(c.remainingAmount)})`}
-              />
-            ))}
-            {d.low.slice(0, 4).map((x) => (
-              <Alert
-                key={x.p.id + x.f.id}
-                tone="warning"
-                text={`${translate("مخزون منخفض")} — ${nom(x.p.name)} · ${nom(x.f.name)} (${num(x.q)} kg)`}
-              />
-            ))}
-            {d.ruptures.slice(0, 4).map((x) => (
-              <Link key={"r" + x.p.id} to="/produits" className="block">
-                <Alert
-                  tone="destructive"
-                  text={`${translate("نفاد المخزون")} — ${nom(x.p.name)} (${num(x.q)} kg)`}
-                />
-              </Link>
-            ))}
-            {d.creditAlerts.slice(0, 4).map((x) => (
-              <Link
-                key={"c" + x.clientId}
-                to="/clients/$id"
-                params={{ id: x.clientId }}
-                className="block"
-              >
-                <Alert
-                  tone="destructive"
-                  text={`${translate("دين مرتفع بعد بيع جديد")} — ${nom(L.client.get(x.clientId)?.name)} (${dt(x.total)} ≥ ${dt(d.seuilCredit)})`}
-                />
-              </Link>
-            ))}
-            {d.packAlerts.slice(0, 3).map((x) => (
-              <Alert
-                key={x.c.id}
-                tone="warning"
-                text={`${translate("صناديق غير مرجعة")} — ${nom(x.c.name)} (${x.r})`}
-              />
-            ))}
-            {d.pending.slice(0, 2).map((s) => (
-              <Alert key={s.id} tone="warning" text={`${translate("دفعة معلقة")} — ${s.number}`} />
-            ))}
-            {!d.overdue.length &&
-              !d.low.length &&
-              !d.packAlerts.length &&
-              !d.ruptures.length &&
-              !d.creditAlerts.length && (
-                <p className="text-muted-foreground">{<Text>{"لا توجد تنبيهات."}</Text>}</p>
-              )}
-          </div>
-          <div className="mt-5 border-t pt-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {<Text>{"أبرز العملاء"}</Text>}
-            </p>
-            {d.top.map(([id, v], i) => (
-              <div key={id} className="flex justify-between py-1 text-sm">
-                <span>
-                  {i + 1}. {translate(L.client.get(id)?.name ?? "")}
-                </span>
-                <span className="font-medium">{dt(v)}</span>
-              </div>
-            ))}
-          </div>
+        <Panel title={translate("أبرز العملاء")}>
+          {d.top.map(([id, v], i) => (
+            <div key={id} className="flex justify-between py-1.5 text-sm">
+              <span>
+                {i + 1}. {translate(L.client.get(id)?.name ?? "")}
+              </span>
+              <span className="font-medium">{dt(v)}</span>
+            </div>
+          ))}
         </Panel>
       </div>
     </div>
@@ -453,5 +465,39 @@ function Alert({ text, tone }: { text: string; tone: "warning" | "destructive" }
     >
       <AlertTriangle className="mt-0.5 size-4 shrink-0" /> <span>{text}</span>
     </div>
+  );
+}
+
+/** Calendrier des crédits à encaisser (section à côté des alertes) ; clic → page des échéances */
+function CalendrierCredits({ credits }: { credits: Credit[] }) {
+  useLanguage();
+  const { state, readOnly } = useApp();
+  const navigate = useNavigate();
+  const [anchor, setAnchor] = useState(() => new Date());
+  const rows = credits
+    .filter(
+      (c) =>
+        !readOnly ||
+        !c.reminderHistory?.some((r) => r.dueDate === c.dueDate) ||
+        deadlineStatus(state, c, new Date().toISOString()) === "OVERDUE",
+    )
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  return (
+    <Panel
+      title={translate("تقويم الديون")}
+      action={
+        <Link to="/echeances" className="text-sm text-primary hover:underline">
+          {translate("عرض الكل")}
+        </Link>
+      }
+    >
+      <DeadlineCalendar
+        rows={rows}
+        anchor={anchor}
+        onAnchor={setAnchor}
+        week
+        onSelect={() => navigate({ to: "/echeances" })}
+      />
+    </Panel>
   );
 }

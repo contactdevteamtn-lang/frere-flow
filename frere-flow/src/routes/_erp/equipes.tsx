@@ -8,10 +8,13 @@ import { dt } from "@/lib/format";
 export const Route = createFileRoute("/_erp/equipes")({
   head: () => ({
     meta: [
-      { title: "Équipes / Figos — Frère Mahjoub" },
-      { name: "description", content: "Performance comparée de Figo 1 et Figo 2." },
-      { property: "og:title", content: "Équipes / Figos — Frère Mahjoub" },
-      { property: "og:description", content: "Performance comparée de Figo 1 et Figo 2." },
+      { title: "Équipes / Frigos — Frère Mahjoub" },
+      { name: "description", content: "Performance comparée de Frigo Fawzi et Frigo Houssem." },
+      { property: "og:title", content: "Équipes / Frigos — Frère Mahjoub" },
+      {
+        property: "og:description",
+        content: "Performance comparée de Frigo Fawzi et Frigo Houssem.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -25,8 +28,8 @@ function Equipes() {
   return (
     <div>
       <PageHeader
-        title={translate("الفرق / فيغو")}
-        subtitle={translate("مبيعات وديون ومدفوعات مستقلة لكل فريق فيغو")}
+        title={translate("الفرق / غرفة التبريد")}
+        subtitle={translate("مبيعات وديون ومدفوعات مستقلة لكل غرفة التبريد")}
       />
       <div className="grid gap-4 md:grid-cols-2">
         {state.teams.map((t) => {

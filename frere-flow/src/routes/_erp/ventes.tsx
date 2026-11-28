@@ -25,9 +25,9 @@ export const Route = createFileRoute("/_erp/ventes")({
   head: () => ({
     meta: [
       { title: "Ventes — Frère Mahjoub" },
-      { name: "description", content: "Gestion des ventes par Figo et par frigo." },
+      { name: "description", content: "Gestion des ventes par Frigo et par frigo." },
       { property: "og:title", content: "Ventes — Frère Mahjoub" },
-      { property: "og:description", content: "Gestion des ventes par Figo et par frigo." },
+      { property: "og:description", content: "Gestion des ventes par Frigo et par frigo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -65,7 +65,7 @@ function Ventes() {
     <div>
       <PageHeader
         title={translate("المبيعات")}
-        subtitle={translate("كل عملية بيع مرتبطة بفريق فيغو وغرفة تبريد")}
+        subtitle={translate("كل عملية بيع مرتبطة بغرفة التبريد وغرفة تبريد")}
         actions={
           <Edit>
             <Button onClick={() => setCreating(true)}>
@@ -141,7 +141,7 @@ function Ventes() {
               ),
               sort: (s) => L.client.get(s.clientId)?.name ?? "",
             },
-            { header: translate("فيغو"), cell: (s) => L.team.get(s.teamId)?.name },
+            { header: translate("غرفة التبريد"), cell: (s) => L.team.get(s.teamId)?.name },
             { header: translate("غرفة التبريد"), cell: (s) => L.frigo.get(s.frigoId)?.name },
             {
               header: translate("الإجمالي"),
@@ -210,7 +210,7 @@ function Ventes() {
                 {translate(L.client.get(view.clientId)?.name ?? "")}
               </p>
               <p>
-                <span className="text-muted-foreground">{<Text>{"فيغو:"}</Text>}</span>{" "}
+                <span className="text-muted-foreground">{<Text>{"غرفة التبريد:"}</Text>}</span>{" "}
                 {translate(L.team.get(view.teamId)?.name ?? "")}
               </p>
               <p>
@@ -315,7 +315,8 @@ export function NewSale({ onClose, defaultTeam }: { onClose: () => void; default
   const { state, run, me, can } = useApp();
   const [f, setF] = useState<SaleInput>({
     clientId: "",
-    teamId: me?.teamId && !can("administration") ? me.teamId : defaultTeam,
+    // équipe : celle de l'employé rattaché, sinon celle du frigo de chaque facture (déduite par le serveur)
+    teamId: me?.teamId && !can("administration") ? me.teamId : "",
     frigoId: state.frigos[0].id,
     items: [{ productId: "", quantity: 0, unitPrice: 0 }],
     paid: 0,
@@ -334,11 +335,11 @@ export function NewSale({ onClose, defaultTeam }: { onClose: () => void; default
       open
       onOpenChange={onClose}
       title={translate("عملية بيع جديدة")}
-      description={translate("تُخصم الكمية من غرفة التبريد المحددة فقط.")}
+      description={translate("اختر غرفة التبريد لكل منتج: فاتورة مستقلة لكل غرفة تبريد.")}
       submitLabel={translate("تأكيد البيع")}
       onSubmit={() => run(createSale, f) && onClose()}
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label={translate("1. العميل")}>
           <NativeSelect
             required
@@ -355,33 +356,9 @@ export function NewSale({ onClose, defaultTeam }: { onClose: () => void; default
               ))}
           </NativeSelect>
         </Field>
-        <Field label={translate("2. فيغو / الفريق")}>
-          <NativeSelect
-            value={f.teamId}
-            disabled={!!me?.teamId && !can("administration")}
-            onChange={(e) => setF({ ...f, teamId: e.target.value })}
-          >
-            {state.teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {translate(t.name ?? "")}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-        <Field label={translate("غرفة التبريد المصدر")}>
-          <NativeSelect value={f.frigoId} onChange={(e) => setF({ ...f, frigoId: e.target.value })}>
-            {state.frigos
-              .filter((x) => x.active)
-              .map((x) => (
-                <option key={x.id} value={x.id}>
-                  {translate(x.name ?? "")}
-                </option>
-              ))}
-          </NativeSelect>
-        </Field>
       </div>
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">{<Text>{"3. المنتجات"}</Text>}</p>
+        <p className="text-xs font-medium text-muted-foreground">{<Text>{"2. المنتجات"}</Text>}</p>
         <p className="text-xs text-muted-foreground">
           {translate("يمكن أخذ كل منتج من غرفة تبريد مختلفة: تُنشأ فاتورة مستقلة لكل غرفة تبريد.")}
         </p>

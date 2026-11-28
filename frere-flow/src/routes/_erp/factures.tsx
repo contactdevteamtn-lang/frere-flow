@@ -42,7 +42,7 @@ type Motif = { facture: Invoice; status: "A_VOIR" | "ANNULEE"; note: string };
 
 function Factures() {
   useLanguage();
-  const { state, run, can } = useApp();
+  const { state, run, can, readOnly } = useApp();
   const L = useLookups();
   const inScope = useTeamScope();
   const [filtre, setFiltre] = useState<"all" | InvoiceStatus>("all");
@@ -54,7 +54,7 @@ function Factures() {
   const [imprimer, setImprimer] = useState<Invoice | null>(null);
   // mode compressé : lignes denses, lecture rapide et impression compacte
   const [compact, setCompact] = useState(false);
-  const gerer = can("ventes");
+  const gerer = can("ventes") && !readOnly;
 
   const toutes = (state.invoices ?? []).filter((f) => inScope(f.teamId));
   const lignes = toutes.filter((f) => filtre === "all" || f.status === filtre);

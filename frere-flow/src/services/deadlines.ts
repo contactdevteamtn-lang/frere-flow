@@ -79,7 +79,7 @@ export function createDeadline(
   const client = prev.clients.find((x) => x.id === inp.clientId && x.active);
   if (!client) throw new BusinessError("العميل غير موجود");
   if (!prev.teams.some((x) => x.id === inp.teamId && x.active))
-    throw new BusinessError("فريق فيغو والمبلغ مطلوبان");
+    throw new BusinessError("غرفة التبريد والمبلغ مطلوبان");
   if (!Number.isFinite(inp.amount) || round(inp.amount) <= 0)
     throw new BusinessError("المبلغ غير صالح");
   if (!!inp.frigoId === !!inp.marketId) throw new BusinessError("اختر غرفة تبريد أو سوقاً");

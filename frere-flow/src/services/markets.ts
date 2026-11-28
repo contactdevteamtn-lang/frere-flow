@@ -245,7 +245,7 @@ export function createMarketTrip(
     !s.markets.some((m) => m.id === marketId && m.active) ||
     !s.teams.some((t) => t.id === inp.teamId && t.active)
   )
-    throw new BusinessError("السوق وفريق فيغو مطلوبان");
+    throw new BusinessError("السوق وغرفة التبريد مطلوبان");
   const loads = inp.loads.filter((l) => l.productId && l.frigoId && l.quantity > 0);
   if (!loads.length) throw new BusinessError("أضف منتجاً واحداً على الأقل");
   const need = new Map<string, number>();

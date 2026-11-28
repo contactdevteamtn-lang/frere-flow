@@ -201,7 +201,7 @@ describe("annulation d'une vente", () => {
 });
 
 describe("caisse", () => {
-  it("un décaissement ne peut pas dépasser le solde de la caisse du Figo", () => {
+  it("un décaissement ne peut pas dépasser le solde de la caisse du Frigo", () => {
     const solde = ops.cashBalance(base, team.id);
     const sortie = (amount: number) =>
       exec(base, "addCash", {
@@ -549,5 +549,28 @@ describe("alertes du tableau de bord (données réelles)", () => {
     expect(d.ruptures.some((r) => r.p.id === vide.id)).toBe(true);
     expect(d.creditAlerts.some((c) => c.clientId === client.id)).toBe(true);
     expect(d.packAlerts.length).toBeGreaterThan(0);
+  });
+});
+
+describe("vente sans choix d'équipe : équipe du frigo", () => {
+  it("chaque facture prend l'équipe de son frigo (Frigo Fawzi ↔ équipe Frigo Fawzi)", () => {
+    const [fa, fh] = base.frigos;
+    const pa = base.products.find((x) => x.active && ops.stockOf(base, x.id, fa!.id) > 5)!;
+    const ph = base.products.find((x) => x.active && ops.stockOf(base, x.id, fh!.id) > 5)!;
+    const s = exec(base, "createSale", {
+      clientId: client.id,
+      teamId: "",
+      frigoId: fa!.id,
+      items: [
+        { productId: pa.id, quantity: 1, unitPrice: 2, frigoId: fa!.id },
+        { productId: ph.id, quantity: 1, unitPrice: 2, frigoId: fh!.id },
+      ],
+      paid: 0,
+      method: "ESPECES",
+      notes: "",
+      packaging: [],
+    });
+    for (const v of s.sales.slice(0, 2)) expect(v.teamId).toBe(ops.equipeDuFrigo(base, v.frigoId));
+    expect(ops.equipeDuFrigo(base, fa!.id)).not.toBe(ops.equipeDuFrigo(base, fh!.id));
   });
 });

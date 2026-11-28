@@ -200,15 +200,18 @@ function Deadlines() {
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    title={t("تمت متابعة العميل")}
-                    aria-label={t("تمت متابعة العميل")}
-                    onClick={() => run(markReminder, c.id)}
-                  >
-                    <Check className="size-4" />
-                  </Button>
+                  {/* consultation seule : pas de case « client relancé » */}
+                  {!readOnly && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title={t("تمت متابعة العميل")}
+                      aria-label={t("تمت متابعة العميل")}
+                      onClick={() => run(markReminder, c.id)}
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                  )}
                   {L.client.get(c.clientId)?.phone && (
                     <Button size="icon" variant="outline" asChild>
                       <a

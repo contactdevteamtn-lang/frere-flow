@@ -157,9 +157,9 @@ export function DeadlineDialog({
                       ))}
                   </NativeSelect>
                 </Field>
-                <Field label="فيغو">
+                <Field label="غرفة التبريد">
                   <NativeSelect
-                    aria-label={t("فيغو")}
+                    aria-label={t("غرفة التبريد")}
                     required
                     value={form.teamId}
                     onChange={(e) => field("teamId", e.target.value)}

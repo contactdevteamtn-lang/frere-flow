@@ -478,7 +478,8 @@ const RULES: Record<string, Rule> = {
     return [
       {
         clientId: ref(s, "clients", x["clientId"], { active: true }),
-        teamId: ref(s, "teams", x["teamId"], { active: true }),
+        // équipe facultative : sinon celle du frigo de chaque facture (voir createSale)
+        teamId: x["teamId"] ? ref(s, "teams", x["teamId"], { active: true }) : "",
         frigoId: ref(s, "frigos", x["frigoId"], { active: true }),
         items: saleItems(s, x["items"]),
         paid: paid(x["paid"]),

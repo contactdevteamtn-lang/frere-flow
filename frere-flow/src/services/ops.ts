@@ -138,12 +138,41 @@ export interface SaleInput {
  * une vente — donc une facture — par frigo, chacune avec ses lignes, son total et son statut.
  * Le montant payé est réparti au prorata du total de chaque facture ; les caisses vont avec la première.
  */
+/**
+ * Équipe d'un frigo (chaque frigo a son équipe : Frigo Fawzi ↔ équipe Frigo Fawzi…) :
+ * même nom (arabe ou français), sinon même rang dans la liste, sinon la première équipe active.
+ */
+export function equipeDuFrigo(s: AppState, frigoId: ID): ID {
+  const frigo = s.frigos.find((x) => x.id === frigoId);
+  const n = (v?: string) => (v ?? "").trim().toLowerCase();
+  const meme = s.teams.find(
+    (t) =>
+      t.active &&
+      frigo &&
+      ((n(t.name) && n(t.name) === n(frigo.name)) ||
+        (n(t.nameAlt) && n(t.nameAlt) === n(frigo.nameAlt))),
+  );
+  const rang = s.teams[s.frigos.findIndex((x) => x.id === frigoId)];
+  return (meme ?? (rang?.active ? rang : undefined) ?? s.teams.find((t) => t.active))?.id ?? "";
+}
+
 export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: string): AppState {
   const frigoDe = (i: SaleInput["items"][number]) => i.frigoId || inp.frigoId;
+  // équipe non choisie (formulaire sans champ « équipe ») : celle du frigo de chaque facture
+  const equipe = (frigoId: ID) => inp.teamId || equipeDuFrigo(prev, frigoId);
   const lignes = inp.items.filter((i) => i.productId && i.quantity > 0);
   const frigos = [...new Set(lignes.map(frigoDe))];
   if (inp.marketTripId || frigos.length <= 1)
-    return creerVenteUnFrigo(prev, { ...inp, frigoId: frigos[0] ?? inp.frigoId }, userId, date);
+    return creerVenteUnFrigo(
+      prev,
+      {
+        ...inp,
+        frigoId: frigos[0] ?? inp.frigoId,
+        teamId: inp.marketTripId ? inp.teamId : equipe(frigos[0] ?? inp.frigoId),
+      },
+      userId,
+      date,
+    );
   const totaux = frigos.map((f) =>
     lignes.filter((i) => frigoDe(i) === f).reduce((a, i) => a + i.quantity * i.unitPrice, 0),
   );
@@ -160,6 +189,7 @@ export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: str
       {
         ...inp,
         frigoId: f,
+        teamId: equipe(f),
         items: lignes.filter((i) => frigoDe(i) === f),
         paid: part,
         packaging: k === 0 ? inp.packaging : [],
@@ -175,7 +205,7 @@ function creerVenteUnFrigo(prev: AppState, inp: SaleInput, userId: ID, date: str
   const s = structuredClone(prev);
   const items = inp.items.filter((i) => i.productId && i.quantity > 0);
   if (!inp.clientId || !inp.teamId || !inp.frigoId)
-    throw new BusinessError("العميل وفريق فيغو وغرفة التبريد مطلوبة");
+    throw new BusinessError("العميل وغرفة التبريد وغرفة التبريد مطلوبة");
   if (!items.length) throw new BusinessError("أضف منتجاً واحداً على الأقل");
   if (!inp.marketTripId && isMarketClient(s, inp.clientId))
     throw new BusinessError("هذا العميل تابع لسوق: سجّل البيع من قسم الأسواق");
@@ -750,7 +780,7 @@ export function manualCredit(
 ): AppState {
   const s = structuredClone(prev);
   if (!inp.clientId || !inp.teamId || !(inp.amount > 0))
-    throw new BusinessError("العميل وفريق فيغو والمبلغ مطلوبة");
+    throw new BusinessError("العميل وغرفة التبريد والمبلغ مطلوبة");
   const id = nextId(s, "cr");
   s.credits.unshift({
     id,
@@ -946,7 +976,7 @@ export function addPackMovement(
 }
 
 // ---------- Cash ----------
-/** Solde de la caisse d'un Figo : encaissements − décaissements */
+/** Solde de la caisse d'un Frigo : encaissements − décaissements */
 export const cashBalance = (s: AppState, teamId: ID) =>
   round(
     s.cash
@@ -968,9 +998,9 @@ export function addCash(
   date: string,
 ): AppState {
   const s = structuredClone(prev);
-  if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("فريق فيغو والمبلغ مطلوبان");
+  if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("غرفة التبريد والمبلغ مطلوبان");
   if (inp.type === "DECAISSEMENT") {
-    // on ne peut pas sortir plus d'argent qu'il n'y en a dans la caisse de ce Figo
+    // on ne peut pas sortir plus d'argent qu'il n'y en a dans la caisse de ce Frigo
     const solde = cashBalance(s, inp.teamId);
     if (inp.amount > solde + 1e-9)
       throw new BusinessError(`رصيد الصندوق غير كافٍ (${solde} TND متوفرة)`);
@@ -1004,7 +1034,7 @@ const LABEL: Record<Coll, string> = {
   products: "المنتج",
   frigos: "غرفة التبريد",
   packagingTypes: "نوع الصندوق",
-  teams: "فيغو",
+  teams: "غرفة التبريد",
   users: "المستخدم",
   roles: "الدور",
 };

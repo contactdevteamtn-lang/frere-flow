@@ -13,12 +13,12 @@ export const Route = createFileRoute("/_erp/emballages-soldes")({
       { title: "Soldes emballages clients — Frère Mahjoub" },
       {
         name: "description",
-        content: "Emballages restants chez chaque client, par type et par Figo.",
+        content: "Emballages restants chez chaque client, par type et par Frigo.",
       },
       { property: "og:title", content: "Soldes emballages clients — Frère Mahjoub" },
       {
         property: "og:description",
-        content: "Emballages restants chez chaque client, par type et par Figo.",
+        content: "Emballages restants chez chaque client, par type et par Frigo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -47,7 +47,7 @@ function Soldes() {
     <div>
       <PageHeader
         title={translate("أرصدة صناديق العملاء")}
-        subtitle={translate("الرصيد حسب العميل والنوع وفريق فيغو، دون دمج")}
+        subtitle={translate("الرصيد حسب العميل والنوع وغرفة التبريد، دون دمج")}
       />
       <Panel>
         <div className="relative mb-3 sm:w-72">
@@ -65,7 +65,7 @@ function Soldes() {
             <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="p-2 text-start">{<Text>{"العميل"}</Text>}</th>
-                <th className="p-2 text-start">{<Text>{"فيغو"}</Text>}</th>
+                <th className="p-2 text-start">{<Text>{"غرفة التبريد"}</Text>}</th>
                 {types.map((t) => (
                   <th key={t.id} className="p-2 text-end">
                     <span className="inline-flex items-center gap-1.5">

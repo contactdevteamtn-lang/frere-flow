@@ -13,9 +13,9 @@ export const Route = createFileRoute("/_erp/clients/$id")({
   head: () => ({
     meta: [
       { title: "Fiche client — Frère Mahjoub" },
-      { name: "description", content: "Historique complet du client par Figo." },
+      { name: "description", content: "Historique complet du client par Frigo." },
       { property: "og:title", content: "Fiche client — Frère Mahjoub" },
-      { property: "og:description", content: "Historique complet du client par Figo." },
+      { property: "og:description", content: "Historique complet du client par Frigo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -156,7 +156,7 @@ function ClientPage() {
               columns={[
                 { header: translate("الرقم"), cell: (s) => s.number },
                 { header: translate("التاريخ"), cell: (s) => dateFr(s.saleDate) },
-                { header: translate("فيغو"), cell: (s) => L.team.get(s.teamId)?.name },
+                { header: translate("غرفة التبريد"), cell: (s) => L.team.get(s.teamId)?.name },
                 { header: translate("غرفة التبريد"), cell: (s) => L.frigo.get(s.frigoId)?.name },
                 {
                   header: translate("المنتجات"),
@@ -189,7 +189,7 @@ function ClientPage() {
                   header: translate("عملية بيع"),
                   cell: (x) => (x.saleId ? L.sale.get(x.saleId)?.number : translate("يدوي")),
                 },
-                { header: translate("فيغو"), cell: (x) => L.team.get(x.teamId)?.name },
+                { header: translate("غرفة التبريد"), cell: (x) => L.team.get(x.teamId)?.name },
                 { header: translate("الإجمالي"), cell: (x) => dt(x.totalAmount) },
                 { header: translate("المدفوع"), cell: (x) => dt(x.paidAmount) },
                 { header: translate("المتبقي"), cell: (x) => dt(x.remainingAmount) },
@@ -207,7 +207,7 @@ function ClientPage() {
               columns={[
                 { header: translate("التاريخ"), cell: (p) => dateTimeFr(p.date) },
                 { header: translate("النوع"), cell: (p) => p.kind },
-                { header: translate("فيغو"), cell: (p) => L.team.get(p.teamId)?.name },
+                { header: translate("غرفة التبريد"), cell: (p) => L.team.get(p.teamId)?.name },
                 { header: translate("طريقة الدفع"), cell: (p) => methodeLabel(p.method) },
                 {
                   header: translate("المبلغ"),

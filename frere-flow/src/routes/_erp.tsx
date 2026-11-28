@@ -108,7 +108,12 @@ const NAV: { title?: string; items: Item[] }[] = [
   {
     title: translate("المتابعة"),
     items: [
-      { to: "/equipes", label: translate("الفرق / فيغو"), icon: UsersRound, perm: "equipes" },
+      {
+        to: "/equipes",
+        label: translate("الفرق / غرفة التبريد"),
+        icon: UsersRound,
+        perm: "equipes",
+      },
       { to: "/rapports", label: translate("التقارير"), icon: BarChart3, perm: "rapports" },
     ],
   },

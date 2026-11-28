@@ -143,7 +143,7 @@ function Paiements() {
               header: translate("المرجع"),
               cell: (p) => <span className="font-mono text-xs">{p.ref}</span>,
             },
-            { header: translate("فيغو"), cell: (p) => L.team.get(p.teamId)?.name },
+            { header: translate("غرفة التبريد"), cell: (p) => L.team.get(p.teamId)?.name },
             { header: translate("المستخدم"), cell: (p) => L.user.get(p.userId)?.name },
             { header: translate("طريقة الدفع"), cell: (p) => methodeLabel(p.method) },
             {

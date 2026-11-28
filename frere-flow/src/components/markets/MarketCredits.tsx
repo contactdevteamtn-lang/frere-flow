@@ -107,7 +107,10 @@ export function MarketCredits() {
               header: translate("السوق"),
               cell: (c) => translate(L.market.get(c.market)?.name ?? "—"),
             },
-            { header: translate("فيغو"), cell: (c) => translate(L.team.get(c.teamId)?.name ?? "") },
+            {
+              header: translate("غرفة التبريد"),
+              cell: (c) => translate(L.team.get(c.teamId)?.name ?? ""),
+            },
             {
               header: translate("عملية بيع"),
               cell: (c) => (

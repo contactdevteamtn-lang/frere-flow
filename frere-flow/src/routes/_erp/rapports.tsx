@@ -56,7 +56,7 @@ function Rapports() {
           [translate("الرقم")]: s.number,
           [translate("التاريخ")]: s.saleDate.slice(0, 10),
           [translate("العميل")]: L.client.get(s.clientId)?.name ?? "",
-          [translate("فيغو")]: L.team.get(s.teamId)?.name ?? "",
+          [translate("غرفة التبريد")]: L.team.get(s.teamId)?.name ?? "",
           [translate("غرفة التبريد")]: L.frigo.get(s.frigoId)?.name ?? "",
           [translate("الإجمالي")]: s.totalAmount,
           [translate("المدفوع")]: s.paidAmount,
@@ -68,7 +68,7 @@ function Rapports() {
         .filter((c) => inDate(c.createdAt) && ok(c.teamId, c.clientId))
         .map((c) => ({
           [translate("العميل")]: L.client.get(c.clientId)?.name ?? "",
-          [translate("فيغو")]: L.team.get(c.teamId)?.name ?? "",
+          [translate("غرفة التبريد")]: L.team.get(c.teamId)?.name ?? "",
           [translate("عملية بيع")]: c.saleId
             ? (L.sale.get(c.saleId)?.number ?? "")
             : translate("يدوي"),
@@ -107,7 +107,7 @@ function Rapports() {
           [translate("التاريخ")]: p.d.slice(0, 10),
           [translate("النوع")]: p.k,
           [translate("العميل")]: L.client.get(p.c)?.name ?? "",
-          [translate("فيغو")]: L.team.get(p.t)?.name ?? "",
+          [translate("غرفة التبريد")]: L.team.get(p.t)?.name ?? "",
           [translate("المستخدم")]: L.user.get(p.u)?.name ?? "",
           [translate("طريقة الدفع")]: methodeLabel(p.m),
           [translate("المبلغ")]: p.a,
@@ -131,7 +131,7 @@ function Rapports() {
               return b.given && ok(t.id, c.id)
                 ? {
                     [translate("العميل")]: c.name,
-                    [translate("فيغو")]: t.name,
+                    [translate("غرفة التبريد")]: t.name,
                     [translate("النوع")]: pt.name,
                     [translate("الصادر")]: b.given,
                     [translate("المرتجع")]: b.returned,
@@ -148,7 +148,7 @@ function Rapports() {
         .map((c) => ({
           [translate("التاريخ")]: c.date.slice(0, 10),
           [translate("النوع")]: c.type === "ENCAISSEMENT" ? translate("قبض") : translate("صرف"),
-          [translate("فيغو")]: L.team.get(c.teamId)?.name ?? "",
+          [translate("غرفة التبريد")]: L.team.get(c.teamId)?.name ?? "",
           [translate("المستخدم")]: L.user.get(c.userId)?.name ?? "",
           [translate("طريقة الدفع")]: methodeLabel(c.method),
           [translate("المرجع")]: c.reference,
@@ -166,7 +166,7 @@ function Rapports() {
         const p = state.creditPayments.filter((x) => x.userId === u.id && inDate(x.paymentDate));
         return {
           [translate("المستخدم")]: u.name,
-          [translate("فيغو")]: u.teamId ? (L.team.get(u.teamId)?.name ?? "") : "—",
+          [translate("غرفة التبريد")]: u.teamId ? (L.team.get(u.teamId)?.name ?? "") : "—",
           [translate("المبيعات")]: s.length,
           [translate("رقم المعاملات (د.ت)")]: r3(s.reduce((a, x) => a + x.totalAmount, 0)),
           [translate("دفعات سداد الديون")]: p.length,
@@ -250,7 +250,7 @@ function Rapports() {
           />
           <Input type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} />
           <NativeSelect className="w-40" value={team} onChange={(e) => setTeam(e.target.value)}>
-            <option value="all">{<Text>{"كل فرق فيغو"}</Text>}</option>
+            <option value="all">{<Text>{"كل غرف التبريد"}</Text>}</option>
             {state.teams.map((t) => (
               <option key={t.id} value={t.id}>
                 {translate(t.name ?? "")}

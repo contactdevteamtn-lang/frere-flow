@@ -24,9 +24,9 @@ export const Route = createFileRoute("/_erp/caisse")({
   head: () => ({
     meta: [
       { title: "Caisse — Frère Mahjoub" },
-      { name: "description", content: "Mouvements et solde de caisse par Figo." },
+      { name: "description", content: "Mouvements et solde de caisse par Frigo." },
       { property: "og:title", content: "Caisse — Frère Mahjoub" },
-      { property: "og:description", content: "Mouvements et solde de caisse par Figo." },
+      { property: "og:description", content: "Mouvements et solde de caisse par Frigo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -68,7 +68,7 @@ function Caisse() {
     <div>
       <PageHeader
         title={translate("الصندوق المالي")}
-        subtitle={translate("تتبع العمليات حسب فريق فيغو والمستخدم")}
+        subtitle={translate("تتبع العمليات حسب غرفة التبريد والمستخدم")}
         actions={
           <Edit>
             <Button onClick={() => setAdd(true)}>
@@ -111,7 +111,7 @@ function Caisse() {
       <Panel title={translate("حركات الصندوق المالي")}>
         <DataTable
           rows={rows}
-          // recherche par opération : type (قبض / صرف), libellé, référence, mode de paiement, montant, Figo, date — en arabe et en français
+          // recherche par opération : type (قبض / صرف), libellé, référence, mode de paiement, montant, Frigo, date — en arabe et en français
           search={(c) =>
             [
               c.reference,
@@ -163,7 +163,7 @@ function Caisse() {
           columns={[
             { header: translate("التاريخ"), cell: (c) => dateTimeFr(c.date), sort: (c) => c.date },
             { header: translate("النوع"), cell: (c) => <Status value={c.type} /> },
-            { header: translate("فيغو"), cell: (c) => L.team.get(c.teamId)?.name },
+            { header: translate("غرفة التبريد"), cell: (c) => L.team.get(c.teamId)?.name },
             { header: translate("المستخدم"), cell: (c) => L.user.get(c.userId)?.name },
             { header: translate("طريقة الدفع"), cell: (c) => methodeLabel(c.method) },
             {
@@ -201,7 +201,7 @@ function Caisse() {
                 <option value="DECAISSEMENT">{<Text>{"صرف"}</Text>}</option>
               </NativeSelect>
             </Field>
-            <Field label={translate("فيغو")}>
+            <Field label={translate("غرفة التبريد")}>
               <NativeSelect
                 value={f.teamId}
                 onChange={(e) => setF({ ...f, teamId: e.target.value })}

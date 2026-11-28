@@ -32,9 +32,9 @@ export const Route = createFileRoute("/_erp/produits")({
   head: () => ({
     meta: [
       { title: "Produits — Frère Mahjoub" },
-      { name: "description", content: "Catalogue des produits partagés entre les Figos." },
+      { name: "description", content: "Catalogue des produits partagés entre les Frigos." },
       { property: "og:title", content: "Produits — Frère Mahjoub" },
-      { property: "og:description", content: "Catalogue des produits partagés entre les Figos." },
+      { property: "og:description", content: "Catalogue des produits partagés entre les Frigos." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -58,7 +58,8 @@ const blank = (): Draft => ({
 function Produits() {
   const { language } = useLanguage();
   const { state, run, can, readOnly } = useApp();
-  const manage = can("administration") || can("caisse");
+  // consultation seule : aucun bouton d'ajout / modification / suppression
+  const manage = (can("administration") || can("caisse")) && !readOnly;
   const [edit, setEdit] = useState<Draft | null>(null);
   const [stock, setStock] = useState<Stock>({ frigoId: "", quantity: 1 });
   const canStock = can("stock");
@@ -87,7 +88,9 @@ function Produits() {
     <div>
       <PageHeader
         title={translate("المنتجات")}
-        subtitle={translate("منتجات مشتركة بين فيغو 1 وفيغو 2 — مخزون مستقل لكل غرفة تبريد")}
+        subtitle={translate(
+          "منتجات مشتركة بين غرفة تبريد فوزي وغرفة تبريد حسام — مخزون مستقل لكل غرفة تبريد",
+        )}
         actions={
           manage && (
             <Button onClick={() => ouvrir(blank())}>

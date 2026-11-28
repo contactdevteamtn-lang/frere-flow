@@ -81,7 +81,7 @@ function Clients() {
     <div>
       <PageHeader
         title={translate("العملاء")}
-        subtitle={translate("يمكن للعميل التعامل مع فيغو 1 أو فيغو 2 أو كليهما")}
+        subtitle={translate("يمكن للعميل التعامل مع غرفة تبريد فوزي أو غرفة تبريد حسام أو كليهما")}
         actions={
           <Edit>
             <Button onClick={() => setEdit(blank())}>
@@ -109,7 +109,7 @@ function Clients() {
             },
             { header: translate("الهاتف"), cell: (r) => r.phone },
             { header: translate("العنوان"), cell: (r) => r.address },
-            { header: translate("فرق فيغو"), cell: (r) => r.teams || "—" },
+            { header: translate("غرف التبريد"), cell: (r) => r.teams || "—" },
             {
               header: translate("إجمالي المشتريات"),
               cell: (r) => dt(r.total),

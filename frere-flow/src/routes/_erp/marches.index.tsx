@@ -25,7 +25,6 @@ import { Kpi, PageHeader, Panel, Status } from "@/components/app/ui";
 import { dateFr, dt, num } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CalendrierMarche } from "@/components/markets/CalendrierMarche";
-import { CalendarDays } from "lucide-react";
 import { MarketAnalytics } from "@/components/markets/MarketAnalytics";
 import { MarketConfiguration } from "@/components/markets/MarketConfiguration";
 import { MarketCredits } from "@/components/markets/MarketCredits";
@@ -80,7 +79,7 @@ function Marches() {
     <div>
       <PageHeader title={translate("إدارة الأسواق")} />
       <Tabs defaultValue="analytics">
-        <TabsList className="mb-5 grid h-auto w-full grid-cols-1 gap-1 md:grid-cols-5">
+        <TabsList className="mb-5 grid h-auto w-full grid-cols-1 gap-1 md:grid-cols-4">
           <TabsTrigger value="analytics" className="gap-2 whitespace-normal py-2">
             <BarChart3 className="size-4 shrink-0" />
             {translate("لوحة تحليل الأسواق")}
@@ -97,16 +96,17 @@ function Marches() {
             <Settings className="size-4 shrink-0" />
             {translate("إعداد الأسواق والعملاء")}
           </TabsTrigger>
-          <TabsTrigger value="calendrier" className="gap-2 whitespace-normal py-2">
-            <CalendarDays className="size-4 shrink-0" />
-            {translate("تقويم عملاء السوق")}
-          </TabsTrigger>
         </TabsList>
-        <TabsContent value="calendrier">
-          <CalendrierMarche />
-        </TabsContent>
         <TabsContent value="analytics">
-          <MarketAnalytics />
+          {/* tableau de bord du marché, et à côté le calendrier des crédits des clients du marché */}
+          <div className="grid gap-4 xl:grid-cols-3">
+            <div className="min-w-0 xl:col-span-2">
+              <MarketAnalytics />
+            </div>
+            <div className="min-w-0">
+              <CalendrierMarche />
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="credits">
           <MarketCredits />
@@ -307,7 +307,7 @@ function NewTrip({ onClose, defaultTeam }: { onClose: () => void; defaultTeam: s
             />
           )}
         </Field>
-        <Field label="2. فيغو / الفريق">
+        <Field label="2. غرفة التبريد / الفريق">
           <NativeSelect
             value={f.teamId}
             disabled={!!me?.teamId && !can("administration")}

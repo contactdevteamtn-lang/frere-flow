@@ -15,11 +15,11 @@ export const Route = createFileRoute("/_erp/emballages-mouvements")({
   head: () => ({
     meta: [
       { title: "Mouvements d'emballages — Frère Mahjoub" },
-      { name: "description", content: "Sorties et retours de caisses par client et par Figo." },
+      { name: "description", content: "Sorties et retours de caisses par client et par Frigo." },
       { property: "og:title", content: "Mouvements d'emballages — Frère Mahjoub" },
       {
         property: "og:description",
-        content: "Sorties et retours de caisses par client et par Figo.",
+        content: "Sorties et retours de caisses par client et par Frigo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -129,7 +129,7 @@ function Moves() {
               cell: (m) => <b>{m.quantity}</b>,
               sort: (m) => m.quantity,
             },
-            { header: translate("فيغو"), cell: (m) => L.team.get(m.teamId)?.name },
+            { header: translate("غرفة التبريد"), cell: (m) => L.team.get(m.teamId)?.name },
             {
               header: translate("عملية بيع"),
               cell: (m) => (
@@ -172,7 +172,7 @@ function Moves() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field label={translate("فيغو")}>
+            <Field label={translate("غرفة التبريد")}>
               <NativeSelect
                 value={form.teamId}
                 onChange={(e) => setForm({ ...form, teamId: e.target.value })}

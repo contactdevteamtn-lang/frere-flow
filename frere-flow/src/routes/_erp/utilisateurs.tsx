@@ -189,7 +189,7 @@ function Admin() {
                     x.roleIds.map((id) => state.roles.find((y) => y.id === id)?.name).join(", "),
                 },
                 {
-                  header: translate("فيغو"),
+                  header: translate("غرفة التبريد"),
                   cell: (x) => (x.teamId ? L.team.get(x.teamId)?.name : "—"),
                 },
                 { header: translate("تاريخ الإنشاء"), cell: (x) => dateFr(x.createdAt) },
@@ -346,7 +346,7 @@ function Admin() {
                 onChange={(e) => setU({ ...u, password: e.target.value })}
               />
             </Field>
-            <Field label={translate("فريق فيغو المرتبط")}>
+            <Field label={translate("غرفة التبريد المرتبط")}>
               <NativeSelect
                 value={u.teamId ?? ""}
                 onChange={(e) => setU({ ...u, teamId: e.target.value || undefined })}
