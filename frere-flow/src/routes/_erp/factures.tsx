@@ -1,12 +1,23 @@
 import { Text, translate, useLanguage } from "@/lib/i18n";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Ban, CheckCircle2, Eye, FileText, MessageSquareWarning } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  Eye,
+  FileText,
+  MessageSquareWarning,
+  Minimize2,
+  Pencil,
+  Plus,
+  Printer,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp, useLookups, useTeamScope } from "@/store/store";
-import { setInvoiceStatus } from "@/services/ops";
+import { editSale, setInvoiceStatus, stockOf } from "@/services/ops";
 import type { Invoice, InvoiceStatus } from "@/types";
 import { DataTable } from "@/components/app/DataTable";
 import { Edit, Field, FormDialog, NativeSelect } from "@/components/app/forms";
@@ -37,6 +48,9 @@ function Factures() {
   const [motif, setMotif] = useState<Motif | null>(null);
   const [annuler, setAnnuler] = useState<Motif | null>(null);
   const [voir, setVoir] = useState<Invoice | null>(null);
+  const [modifier, setModifier] = useState<Invoice | null>(null);
+  // mode compressé : lignes denses, lecture rapide et impression compacte
+  const [compact, setCompact] = useState(false);
   const gerer = can("ventes");
 
   const toutes = (state.invoices ?? []).filter((f) => inScope(f.teamId));
@@ -51,6 +65,21 @@ function Factures() {
       <PageHeader
         title={translate("الفواتير")}
         subtitle={translate("فاتورة لكل عملية بيع: صالحة، للمراجعة أو ملغاة")}
+        actions={
+          <>
+            <Button
+              variant={compact ? "default" : "outline"}
+              aria-pressed={compact}
+              onClick={() => setCompact(!compact)}
+            >
+              <Minimize2 className="size-4" />
+              {translate("عرض مضغوط")}
+            </Button>
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="size-4" /> {translate("طباعة")}
+            </Button>
+          </>
+        }
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Kpi
@@ -72,7 +101,13 @@ function Factures() {
           icon={Ban}
         />
       </div>
-      <Panel>
+      <Panel
+        className={
+          compact
+            ? "text-xs [&_td]:!px-1.5 [&_td]:!py-1 [&_th]:!py-1 print:[&_td]:!py-0.5"
+            : undefined
+        }
+      >
         <DataTable
           rows={lignes}
           search={(f) =>
@@ -132,6 +167,19 @@ function Factures() {
                   >
                     <Eye className="size-4" />
                   </Button>
+                  {gerer && f.status !== "ANNULEE" && !L.sale.get(f.saleId)?.marketTripId && (
+                    <Edit>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title={translate("تعديل الفاتورة")}
+                        aria-label={translate("تعديل الفاتورة")}
+                        onClick={() => setModifier(f)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </Edit>
+                  )}
                   {gerer && f.status !== "ANNULEE" && (
                     <Edit>
                       {f.status === "A_VOIR" ? (
@@ -228,6 +276,7 @@ function Factures() {
       )}
 
       {voir && <FactureDetail facture={voir} onClose={() => setVoir(null)} />}
+      {modifier && <ModifierFacture facture={modifier} onClose={() => setModifier(null)} />}
     </div>
   );
 }
@@ -293,5 +342,151 @@ function FactureDetail({ facture, onClose }: { facture: Invoice; onClose: () => 
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Modification complète : lignes, quantités, prix — stock, crédit, remboursement recalculés par le serveur */
+function ModifierFacture({ facture, onClose }: { facture: Invoice; onClose: () => void }) {
+  useLanguage();
+  const { state, run } = useApp();
+  const vente = state.sales.find((x) => x.id === facture.saleId);
+  const [lignes, setLignes] = useState(
+    state.saleItems
+      .filter((i) => i.saleId === facture.saleId)
+      .map((i) => ({ productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice })),
+  );
+  if (!vente) return null;
+  const avant = (pid: string) =>
+    state.saleItems
+      .filter((i) => i.saleId === vente.id && i.productId === pid)
+      .reduce((a, i) => a + i.quantity, 0);
+  const total = lignes.reduce((a, l) => a + l.quantity * l.unitPrice, 0);
+  const rembourse = Math.max(vente.paidAmount - total, 0);
+  const maj = (k: number, p: Partial<(typeof lignes)[number]>) =>
+    setLignes(lignes.map((l, j) => (j === k ? { ...l, ...p } : l)));
+  return (
+    <FormDialog
+      wide
+      open
+      onOpenChange={onClose}
+      title={`${translate("تعديل الفاتورة")} — ${facture.number}`}
+      onSubmit={() => run(editSale, vente.id, { items: lignes }) && onClose()}
+    >
+      <div className="space-y-2">
+        {lignes.map((l, k) => {
+          // disponible pour cette ligne = stock du frigo + quantité déjà dans la facture
+          const dispo = l.productId
+            ? stockOf(state, l.productId, vente.frigoId) + avant(l.productId)
+            : null;
+          return (
+            <div key={k} className="grid grid-cols-12 items-start gap-2 rounded-lg bg-muted/50 p-2">
+              <Field label="المنتج" className="col-span-12 sm:col-span-5">
+                <NativeSelect
+                  value={l.productId}
+                  onChange={(e) => {
+                    const p = state.products.find((x) => x.id === e.target.value);
+                    maj(k, {
+                      productId: e.target.value,
+                      unitPrice: p?.salePrice ?? 0,
+                      quantity: l.quantity || 1,
+                    });
+                  }}
+                >
+                  <option value="">{translate("اختر المنتج…")}</option>
+                  {state.products
+                    .filter((p) => p.active || p.id === l.productId)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {translate(p.name ?? "")}
+                      </option>
+                    ))}
+                </NativeSelect>
+                {dispo !== null && (
+                  <p
+                    className={
+                      dispo < l.quantity
+                        ? "text-xs text-destructive"
+                        : "text-xs text-muted-foreground"
+                    }
+                  >
+                    {translate("المتوفر: ")}
+                    {dispo}
+                  </p>
+                )}
+              </Field>
+              <Field label="الكمية (كغ)" className="col-span-4 sm:col-span-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  aria-label={translate("الكمية (كغ)")}
+                  value={l.quantity || ""}
+                  onChange={(e) => maj(k, { quantity: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="سعر الوحدة (د.ت)" className="col-span-4 sm:col-span-2">
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.001"
+                  aria-label={translate("سعر الوحدة (د.ت)")}
+                  value={l.unitPrice || ""}
+                  onChange={(e) => maj(k, { unitPrice: Number(e.target.value) })}
+                />
+              </Field>
+              <Field label="المجموع" className="col-span-3 sm:col-span-2">
+                <div className="flex h-9 items-center justify-end text-sm font-semibold">
+                  {dt(l.quantity * l.unitPrice)}
+                </div>
+              </Field>
+              <div className="col-span-1 pt-5">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label={translate("حذف")}
+                  onClick={() => setLignes(lignes.filter((_, j) => j !== k))}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setLignes([...lignes, { productId: "", quantity: 1, unitPrice: 0 }])}
+        >
+          <Plus className="size-4" /> {translate("إضافة منتج")}
+        </Button>
+        <div className="space-y-1 rounded-lg border p-3 text-sm">
+          <div className="flex justify-between">
+            <span>{translate("الإجمالي السابق")}</span>
+            <span>{dt(vente.totalAmount)}</span>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <span>{translate("الإجمالي الجديد")}</span>
+            <span>{dt(total)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>{translate("المدفوع")}</span>
+            <span>{dt(vente.paidAmount)}</span>
+          </div>
+          {rembourse > 0 ? (
+            <p className="text-xs text-warning-foreground">
+              {translate("الإجمالي الجديد أقل من المدفوع: يُرجع الفرق للعميل من الصندوق")} (
+              {dt(rembourse)})
+            </p>
+          ) : (
+            <div className="flex justify-between text-destructive">
+              <span>{translate("المتبقي")}</span>
+              <span>{dt(total - vente.paidAmount)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </FormDialog>
   );
 }

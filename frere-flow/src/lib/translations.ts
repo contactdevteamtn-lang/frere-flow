@@ -370,6 +370,17 @@ export const translations: Record<string, string> = {
   العربية: "Arabe",
   // ── Factures ──
   الفواتير: "Factures",
+  "عرض مضغوط": "Mode compressé",
+  طباعة: "Imprimer",
+  "الإجمالي السابق": "Ancien total",
+  "الإجمالي الجديد": "Nouveau total",
+  "الإجمالي الجديد أقل من المدفوع: يُرجع الفرق للعميل من الصندوق":
+    "Le nouveau total est inférieur au montant payé : la différence est remboursée au client par la caisse",
+  "يمكن أخذ كل منتج من غرفة تبريد مختلفة: تُنشأ فاتورة مستقلة لكل غرفة تبريد.":
+    "Chaque produit peut venir d’un frigo différent : une facture indépendante est créée pour chaque frigo.",
+  "مبيعات السوق تُدار من قسم الأسواق": "Les ventes du marché se gèrent dans la section Marchés",
+  "إرجاع فرق تعديل الفاتورة": "Remboursement de la différence (facture modifiée)",
+  "تعديل الفاتورة": "Modifier la facture",
   قطعة: "pièce",
   طن: "tonne",
   "وحدة البيع": "Unité de vente",

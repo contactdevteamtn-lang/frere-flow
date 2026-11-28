@@ -454,3 +454,75 @@ describe("ajout de produit : type, unité, nom unique, stock à 0 réaffecté", 
     expect(s.products[0]!.category).toBe("فواكه");
   });
 });
+
+describe("vente depuis les deux frigos : une facture par frigo", () => {
+  it("lignes de Frigo Fawzi et Frigo Houssem → 2 ventes, 2 factures, paiement au prorata", () => {
+    const [fa, fh] = base.frigos;
+    const pa = base.products.find((x) => x.active && ops.stockOf(base, x.id, fa!.id) > 20)!;
+    const ph = base.products.find((x) => x.active && ops.stockOf(base, x.id, fh!.id) > 20)!;
+    const s = exec(base, "createSale", {
+      clientId: client.id,
+      teamId: team.id,
+      frigoId: fa!.id,
+      items: [
+        { productId: pa.id, quantity: 10, unitPrice: 3, frigoId: fa!.id }, // 30
+        { productId: ph.id, quantity: 10, unitPrice: 1, frigoId: fh!.id }, // 10
+      ],
+      paid: 20,
+      method: "ESPECES",
+      notes: "",
+      packaging: [],
+    });
+    const nouvelles = s.sales.slice(0, 2);
+    expect(new Set(nouvelles.map((v) => v.frigoId))).toEqual(new Set([fa!.id, fh!.id]));
+    const va = nouvelles.find((v) => v.frigoId === fa!.id)!;
+    const vh = nouvelles.find((v) => v.frigoId === fh!.id)!;
+    expect([va.totalAmount, va.paidAmount]).toEqual([30, 15]);
+    expect([vh.totalAmount, vh.paidAmount]).toEqual([10, 5]);
+    const factures = s.invoices.filter((f) => f.saleId === va.id || f.saleId === vh.id);
+    expect(factures).toHaveLength(2);
+    expect(ops.stockOf(s, pa.id, fa!.id)).toBe(ops.stockOf(base, pa.id, fa!.id) - 10);
+    expect(ops.stockOf(s, ph.id, fh!.id)).toBe(ops.stockOf(base, ph.id, fh!.id) - 10);
+  });
+});
+
+describe("modification complète d'une facture", () => {
+  it("quantité augmentée : stock sorti, total, crédit et facture recalculés", () => {
+    let s = vente(base, 0); // 10 × 2 = 20, non payé
+    const sale = s.sales[0]!;
+    const stock0 = ops.stockOf(s, p.id, frigo.id);
+    s = exec(s, "editSale", sale.id, { items: [{ productId: p.id, quantity: 15, unitPrice: 2 }] });
+    const v = s.sales.find((x) => x.id === sale.id)!;
+    expect([v.totalAmount, v.remainingAmount]).toEqual([30, 30]);
+    expect(ops.stockOf(s, p.id, frigo.id)).toBe(stock0 - 5);
+    expect(s.credits.find((c) => c.saleId === sale.id)!.remainingAmount).toBe(30);
+    expect(s.invoices.find((f) => f.saleId === sale.id)).toMatchObject({
+      amount: 30,
+      status: "VALIDEE",
+    });
+  });
+  it("nouveau total inférieur au déjà payé : différence remboursée, vente « payée »", () => {
+    let s = vente(base, 20); // payée 20
+    const sale = s.sales[0]!;
+    const caisse = ops.cashBalance(s, team.id);
+    const stock0 = ops.stockOf(s, p.id, frigo.id);
+    s = exec(s, "editSale", sale.id, { items: [{ productId: p.id, quantity: 5, unitPrice: 2 }] });
+    const v = s.sales.find((x) => x.id === sale.id)!;
+    expect([v.totalAmount, v.paidAmount, v.remainingAmount]).toEqual([10, 10, 0]);
+    expect(code(s, v.saleStatusId)).toBe("PAID");
+    expect(ops.cashBalance(s, team.id)).toBe(r3(caisse - 10));
+    expect(ops.stockOf(s, p.id, frigo.id)).toBe(stock0 + 5);
+  });
+  it("refusée : vente annulée, stock insuffisant, aucune ligne", () => {
+    const s = vente(base, 0);
+    const id = s.sales[0]!.id;
+    expect(() =>
+      exec(s, "editSale", id, { items: [{ productId: p.id, quantity: 10_000_000, unitPrice: 2 }] }),
+    ).toThrow();
+    expect(() => exec(s, "editSale", id, { items: [] })).toThrow();
+    const annulee = exec(s, "cancelSale", id, "test");
+    expect(() =>
+      exec(annulee, "editSale", id, { items: [{ productId: p.id, quantity: 1, unitPrice: 2 }] }),
+    ).toThrow();
+  });
+});

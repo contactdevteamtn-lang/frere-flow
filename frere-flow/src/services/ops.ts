@@ -123,7 +123,8 @@ export interface SaleInput {
   clientId: ID;
   teamId: ID;
   frigoId: ID;
-  items: { productId: ID; quantity: number; unitPrice: number }[];
+  /** frigoId par ligne : produit pris dans ce frigo (sinon le frigo de la vente) */
+  items: { productId: ID; quantity: number; unitPrice: number; frigoId?: ID }[];
   paid: number;
   method: PaymentMethod;
   notes: string;
@@ -132,7 +133,45 @@ export interface SaleInput {
   marketTripId?: ID;
 }
 
+/**
+ * Nouvelle vente. Les produits peuvent venir des deux frigos à la fois : la vente est alors séparée en
+ * une vente — donc une facture — par frigo, chacune avec ses lignes, son total et son statut.
+ * Le montant payé est réparti au prorata du total de chaque facture ; les caisses vont avec la première.
+ */
 export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: string): AppState {
+  const frigoDe = (i: SaleInput["items"][number]) => i.frigoId || inp.frigoId;
+  const lignes = inp.items.filter((i) => i.productId && i.quantity > 0);
+  const frigos = [...new Set(lignes.map(frigoDe))];
+  if (inp.marketTripId || frigos.length <= 1)
+    return creerVenteUnFrigo(prev, { ...inp, frigoId: frigos[0] ?? inp.frigoId }, userId, date);
+  const totaux = frigos.map((f) =>
+    lignes.filter((i) => frigoDe(i) === f).reduce((a, i) => a + i.quantity * i.unitPrice, 0),
+  );
+  const total = totaux.reduce((a, t) => a + t, 0);
+  const paye = Math.min(Math.max(inp.paid || 0, 0), total);
+  let reste = round(paye);
+  let s = prev;
+  frigos.forEach((f, k) => {
+    // dernière facture : le reste du paiement (aucun millime perdu par les arrondis)
+    const part = k === frigos.length - 1 ? reste : round(total ? (paye * totaux[k]!) / total : 0);
+    reste = round(reste - part);
+    s = creerVenteUnFrigo(
+      s,
+      {
+        ...inp,
+        frigoId: f,
+        items: lignes.filter((i) => frigoDe(i) === f),
+        paid: part,
+        packaging: k === 0 ? inp.packaging : [],
+      },
+      userId,
+      date,
+    );
+  });
+  return s;
+}
+
+function creerVenteUnFrigo(prev: AppState, inp: SaleInput, userId: ID, date: string): AppState {
   const s = structuredClone(prev);
   const items = inp.items.filter((i) => i.productId && i.quantity > 0);
   if (!inp.clientId || !inp.teamId || !inp.frigoId)
@@ -267,6 +306,143 @@ export function createSale(prev: AppState, inp: SaleInput, userId: ID, date: str
     "عملية بيع",
     id,
     `${number} — الإجمالي ${total} TND, المدفوع ${paid} TND`,
+    date,
+  );
+  return s;
+}
+
+// ---------- Modification complète d'une vente / facture ----------
+/**
+ * Modifie les lignes d'une vente (produits, quantités, prix) et recalcule tout côté serveur :
+ *  - stock : la différence avant/après entre ou sort du frigo de la vente (contrôle du stock disponible) ;
+ *  - total, payé, reste, statut de la vente ; crédit associé (créé, ajusté ou soldé) ;
+ *  - si le nouveau total est inférieur à ce qui a déjà été payé : la différence est remboursée (caisse) ;
+ *  - la facture reprend le nouveau montant et redevient « validée ».
+ * Impossible sur une vente annulée ou une vente du marché (gérée dans la section Marchés).
+ */
+export function editSale(
+  prev: AppState,
+  saleId: ID,
+  inp: { items: { productId: ID; quantity: number; unitPrice: number }[]; notes?: string },
+  userId: ID,
+  date: string,
+): AppState {
+  const s = structuredClone(prev);
+  const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("عملية البيع غير موجودة");
+  if (sale.saleStatusId === saleStatusId(s, "CANCELLED"))
+    throw new BusinessError("عملية البيع ملغاة");
+  if (sale.marketTripId) throw new BusinessError("مبيعات السوق تُدار من قسم الأسواق");
+  const items = inp.items.filter((i) => i.productId && i.quantity > 0);
+  if (!items.length) throw new BusinessError("أضف منتجاً واحداً على الأقل");
+  const anciennes = s.saleItems.filter((i) => i.saleId === saleId);
+  // 1) stock : différence par produit dans le frigo de la vente
+  const qte = (l: { productId: ID; quantity: number }[], pid: ID) =>
+    l.filter((i) => i.productId === pid).reduce((a, i) => a + i.quantity, 0);
+  const produits = new Set([...anciennes, ...items].map((i) => i.productId));
+  for (const pid of produits) {
+    const delta = round(qte(items, pid) - qte(anciennes, pid));
+    if (delta > 0 && stockOf(s, pid, sale.frigoId) < delta) {
+      const p = s.products.find((x) => x.id === pid);
+      throw new BusinessError(
+        `مخزون غير كافٍ للمنتج ${p?.name} (${stockOf(s, pid, sale.frigoId)} ${p?.unit} متوفرة في غرفة التبريد)`,
+      );
+    }
+    if (delta !== 0)
+      s.stockMovements.unshift({
+        id: nextId(s, "mv"),
+        productId: pid,
+        frigoId: sale.frigoId,
+        quantity: Math.abs(delta),
+        movementType: delta > 0 ? "SORTIE" : "ENTREE",
+        date,
+        userId,
+        reference: sale.number,
+        notes: "تعديل الفاتورة",
+      });
+  }
+  // 2) lignes et total
+  s.saleItems = s.saleItems.filter((i) => i.saleId !== saleId);
+  for (const i of items)
+    s.saleItems.push({
+      id: nextId(s, "si"),
+      saleId,
+      productId: i.productId,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      total: round(i.quantity * i.unitPrice),
+    });
+  const ancienTotal = sale.totalAmount;
+  const total = round(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0));
+  // 3) argent : payé à la vente (P0) + payé sur le crédit (CP)
+  const p0 = round(s.payments.filter((p) => p.saleId === saleId).reduce((a, p) => a + p.amount, 0));
+  const credit = s.credits.find((c) => c.saleId === saleId);
+  const cp = credit?.paidAmount ?? 0;
+  const dejaPaye = round(p0 + cp);
+  if (total < dejaPaye) {
+    const rembourse = round(dejaPaye - total);
+    s.cash.unshift({
+      id: nextId(s, "cash"),
+      teamId: sale.teamId,
+      userId,
+      type: "DECAISSEMENT",
+      method: "ESPECES",
+      amount: rembourse,
+      reference: sale.number,
+      date,
+      description: "إرجاع فرق تعديل الفاتورة",
+    });
+  }
+  sale.totalAmount = total;
+  sale.paidAmount = round(Math.min(dejaPaye, total));
+  sale.remainingAmount = round(total - sale.paidAmount);
+  if (inp.notes !== undefined) sale.notes = inp.notes;
+  // 4) crédit : toujours égal à ce qui reste dû après le paiement à la vente
+  if (credit) {
+    credit.totalAmount = round(Math.max(total - p0, cp));
+    credit.remainingAmount = round(credit.totalAmount - credit.paidAmount);
+    credit.creditStatusId = statutCalcule(s, credit);
+  } else if (sale.remainingAmount > 0) {
+    s.credits.unshift({
+      id: nextId(s, "cr"),
+      clientId: sale.clientId,
+      teamId: sale.teamId,
+      saleId,
+      creditStatusId: creditStatusId(s, p0 > 0 ? "PARTIAL" : "ACTIVE"),
+      totalAmount: sale.remainingAmount,
+      paidAmount: 0,
+      remainingAmount: sale.remainingAmount,
+      dueDate: new Date(new Date(date).getTime() + s.settings.defaultDueDays * 864e5)
+        .toISOString()
+        .slice(0, 10),
+      createdAt: date,
+    });
+  }
+  const confirmee = sale.saleStatusId === saleStatusId(s, "CONFIRMED");
+  sale.saleStatusId = saleStatusId(
+    s,
+    sale.remainingAmount === 0
+      ? "PAID"
+      : sale.paidAmount > 0
+        ? "PARTIAL"
+        : confirmee
+          ? "CONFIRMED"
+          : "PENDING",
+  );
+  // 5) facture : nouveau montant, de nouveau « validée »
+  for (const fac of s.invoices.filter((x) => x.saleId === saleId)) {
+    fac.amount = total;
+    fac.status = "VALIDEE";
+    fac.notes = "";
+    fac.updatedAt = date;
+  }
+  audit(
+    s,
+    userId,
+    "تعديل الفاتورة",
+    "عملية بيع",
+    saleId,
+    `${sale.number} — الإجمالي ${ancienTotal} TND → ${total} TND`,
     date,
   );
   return s;

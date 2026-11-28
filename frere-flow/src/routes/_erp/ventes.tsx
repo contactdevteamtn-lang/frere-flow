@@ -382,13 +382,31 @@ export function NewSale({ onClose, defaultTeam }: { onClose: () => void; default
       </div>
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">{<Text>{"3. المنتجات"}</Text>}</p>
+        <p className="text-xs text-muted-foreground">
+          {translate("يمكن أخذ كل منتج من غرفة تبريد مختلفة: تُنشأ فاتورة مستقلة لكل غرفة تبريد.")}
+        </p>
         {f.items.map((it, i) => {
-          const av = it.productId ? stockOf(state, it.productId, f.frigoId) : null;
+          const frigoLigne = it.frigoId || f.frigoId;
+          const av = it.productId ? stockOf(state, it.productId, frigoLigne) : null;
           return (
             // libellés fixes au-dessus de chaque case + alignement en haut : les cases ne bougent
             // plus quand le prix se remplit ou que la ligne « disponible » apparaît
             <div key={i} className="grid grid-cols-12 items-start gap-2 rounded-lg bg-muted/50 p-2">
-              <Field label="المنتج" className="col-span-12 sm:col-span-4">
+              <Field label="غرفة التبريد" className="col-span-12 sm:col-span-2">
+                <NativeSelect
+                  value={frigoLigne}
+                  onChange={(e) => setItem(i, { frigoId: e.target.value })}
+                >
+                  {state.frigos
+                    .filter((x) => x.active)
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {translate(x.name ?? "")}
+                      </option>
+                    ))}
+                </NativeSelect>
+              </Field>
+              <Field label="المنتج" className="col-span-12 sm:col-span-3">
                 <NativeSelect
                   value={it.productId}
                   onChange={(e) => {
@@ -447,7 +465,7 @@ export function NewSale({ onClose, defaultTeam }: { onClose: () => void; default
                   onChange={(e) => setItem(i, { unitPrice: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="المجموع" className="col-span-3 sm:col-span-3">
+              <Field label="المجموع" className="col-span-3 sm:col-span-2">
                 <div className="flex h-9 items-center justify-end text-sm font-semibold">
                   {dt(it.quantity * it.unitPrice)}
                 </div>

@@ -446,6 +446,8 @@ function saleItems(s: AppState, v: unknown) {
       productId: ref(s, "products", x["productId"], { active: true }),
       quantity: qty(x["quantity"]),
       unitPrice: num(x["unitPrice"] ?? 0, V.price, { min: 0, max: 100_000 }),
+      // frigo de la ligne (vente depuis les deux frigos : une facture par frigo)
+      ...(x["frigoId"] ? { frigoId: ref(s, "frigos", x["frigoId"], { active: true }) } : {}),
     }));
 }
 function boxRows(s: AppState, v: unknown, key = "typeId") {
@@ -488,6 +490,20 @@ const RULES: Record<string, Rule> = {
   },
   cancelSale: (s, [id, r]) => [ref(s, "sales", id), reason(r)],
   setSaleStatus: (s, [id, st]) => [ref(s, "sales", id), ref(s, "saleStatuses", st)],
+  editSale: (s, [id, i]) => {
+    const x = obj(i);
+    return [
+      ref(s, "sales", id),
+      {
+        items: saleItems(s, x["items"]).map(({ productId, quantity, unitPrice }) => ({
+          productId,
+          quantity,
+          unitPrice,
+        })),
+        ...(x["notes"] !== undefined ? { notes: notes(x["notes"]) } : {}),
+      },
+    ];
+  },
   setInvoiceStatus: (s, [id, st, note]) => [
     ref(s, "invoices", id),
     oneOf(st, ["VALIDEE", "A_VOIR", "ANNULEE"] as const),

@@ -33,6 +33,7 @@ const OP_NAMES = new Map<(...a: any[]) => AppState, string>([
   [ops.cancelSale, "cancelSale"],
   [ops.setSaleStatus, "setSaleStatus"],
   [ops.setInvoiceStatus, "setInvoiceStatus"],
+  [ops.editSale, "editSale"],
   [ops.addCreditPayment, "addCreditPayment"],
   [ops.addManualCredit, "addManualCredit"],
   [ops.setCreditStatus, "setCreditStatus"],

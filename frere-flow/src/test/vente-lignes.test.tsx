@@ -33,7 +33,8 @@ describe("formulaire de vente : lignes produit", () => {
     expect(ordre()).toEqual(["الكمية (كغ)", "سعر الوحدة (د.ت)"]);
 
     const produit = state.products.find((p) => p.active)!;
-    fireEvent.change(within(ligne).getByRole("combobox"), { target: { value: produit.id } });
+    // 1re liste : frigo de la ligne, 2e : produit
+    fireEvent.change(within(ligne).getAllByRole("combobox")[1]!, { target: { value: produit.id } });
     expect(prix.value).toBe(String(produit.salePrice));
     expect(quantite.value).toBe("1"); // quantité de départ : 1
     expect(ordre()).toEqual(["الكمية (كغ)", "سعر الوحدة (د.ت)"]);
